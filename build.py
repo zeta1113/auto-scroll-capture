@@ -59,6 +59,20 @@ def ensure_icon():
         subprocess.check_call([sys.executable, maker])
 
 
+def ensure_capture_icons():
+    """제공된 SVG를 렌더해 캡처 버튼용 assets/cap_*.png 생성(가능할 때)."""
+    renderer = os.path.join(SRC, "render_icons.py")
+    if not os.path.isfile(renderer):
+        return
+    r = subprocess.run([sys.executable, renderer],
+                       capture_output=True, text=True)
+    if r.returncode == 0:
+        log("캡처 아이콘(assets) 렌더 완료")
+    else:
+        log("아이콘 렌더 건너뜀(기존 assets 사용): "
+            + (r.stderr or "").strip().splitlines()[-1:][0] if r.stderr else "")
+
+
 # ---------- 코드 서명 ----------
 def ensure_cert():
     maker = os.path.join(TOOLS, "make_cert.ps1")
@@ -120,6 +134,9 @@ def build_exe():
     ]
     if os.path.isfile(ICON):
         cmd += ["--add-data", f"{ICON}{sep}."]
+    assets_dir = os.path.join(SRC, "assets")
+    if os.path.isdir(assets_dir):
+        cmd += ["--add-data", f"{assets_dir}{sep}assets"]
     cmd += [
         "--hidden-import", "win32gui",
         "--hidden-import", "win32api",
@@ -211,6 +228,7 @@ def main():
         version = bump_version(level)
 
     ensure_icon()
+    ensure_capture_icons()
     have_cert = ensure_cert()
 
     exe = build_exe()

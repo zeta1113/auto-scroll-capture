@@ -182,102 +182,26 @@ def get_window_rect(hwnd):
 # ------------------------------------------------------------------
 # 캡처 버튼 아이콘 (심플한 벡터 아이콘을 PIL 로 그려 생성)
 # ------------------------------------------------------------------
-def make_capture_icons(w=62, h=40, margin=5):
-    """7개 캡처 버튼용 아이콘(가로 직사각형)을 {mode: PhotoImage} 로 생성.
-    라인 스타일(#2C5F8A): 화면은 선만, 스탠드/점만 채움, 스크롤 계열은 단순 직선 아래화살표.
-    (제공된 SVG 아이콘 세트 기반)"""
-    from PIL import ImageDraw
-    ss = 4
-    W, H = w * ss, h * ss
-    LINE = (44, 95, 138, 255)      # #2C5F8A
-    WHITE = (255, 255, 255, 255)
-    lw = max(3, int(H * 0.075))
-    m = int(margin * ss)
-    X0, Y0, X1, Y1 = m, m, W - m, H - m
-    GW, GH = X1 - X0, Y1 - Y0
+CAPTURE_ICON_MODES = ["scroll_display", "scroll_window", "scroll_region",
+                      "shot_all", "shot_display", "shot_window", "shot_region"]
 
-    def monitor(d, ox=0, oy=0, sc=1.0, stand=True, fill=None):
-        cx = (X0 + X1) / 2 + ox
-        mw, mh = GW * 0.60 * sc, GH * 0.60 * sc
-        x0, x1 = cx - mw / 2, cx + mw / 2
-        y0 = (Y0 + GH * 0.06) + oy
-        y1 = y0 + mh
-        d.rounded_rectangle([x0, y0, x1, y1], radius=mh * 0.20,
-                            fill=fill, outline=LINE, width=lw)
-        if stand:
-            nw, nh = mw * 0.11, GH * 0.12
-            d.rectangle([cx - nw, y1, cx + nw, y1 + nh], fill=LINE)
-            bw = mw * 0.34
-            d.rounded_rectangle([cx - bw, y1 + nh, cx + bw, y1 + nh + GH * 0.10],
-                                radius=GH * 0.05, fill=LINE)
-        return (x0, y0, x1, y1)
 
-    def window(d):
-        d.rounded_rectangle([X0, Y0, X1, Y1], radius=GH * 0.14,
-                            outline=LINE, width=lw)
-        ty = Y0 + GH * 0.30
-        d.line([X0, ty, X1, ty], fill=LINE, width=lw)
-        r = lw * 0.72
-        cy = (Y0 + ty) / 2
-        for i in range(3):
-            cx = X0 + GW * 0.08 + i * (r * 3.4)
-            d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=LINE)
-
-    def region(d):
-        dash, gap = GW * 0.06, GW * 0.045
-        def hl(y):
-            x = X0
-            while x < X1:
-                d.line([x, y, min(x + dash, X1), y], fill=LINE, width=lw)
-                x += dash + gap
-        def vl(x):
-            y = Y0
-            while y < Y1:
-                d.line([x, y, x, min(y + dash, Y1)], fill=LINE, width=lw)
-                y += dash + gap
-        hl(Y0); hl(Y1); vl(X0); vl(X1)
-
-    def two(d):
-        # 뒤 모니터(좌상, 스탠드 없음) → 앞 모니터(우하, 흰 채움 + 스탠드)
-        monitor(d, ox=-GW * 0.13, oy=-GH * 0.10, sc=0.92, stand=False)
-        monitor(d, ox=GW * 0.13, oy=GH * 0.06, sc=0.92, stand=True, fill=WHITE)
-
-    def arrow(d, cyc):
-        cx = (X0 + X1) / 2
-        ah = GH * 0.22
-        y0, y1 = cyc - ah, cyc + ah
-        aw = GW * 0.05
-        d.line([cx, y0, cx, y1], fill=LINE, width=lw)
-        d.line([cx - aw, y1 - aw * 1.5, cx, y1], fill=LINE, width=lw)
-        d.line([cx + aw, y1 - aw * 1.5, cx, y1], fill=LINE, width=lw)
-
-    ARROW_CY = {"monitor": Y0 + GH * 0.30, "window": Y0 + GH * 0.58,
-                "region": (Y0 + Y1) / 2}
-
-    def build(kind, scroll):
-        img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-        d = ImageDraw.Draw(img)
-        if kind == "monitor":
-            monitor(d)
-        elif kind == "window":
-            window(d)
-        elif kind == "region":
-            region(d)
-        elif kind == "two":
-            two(d)
-        if scroll:
-            arrow(d, ARROW_CY.get(kind, (Y0 + Y1) / 2))
-        return ImageTk.PhotoImage(img.resize((w, h), Image.LANCZOS))
-
-    return {
-        "scroll_display": build("monitor", True),
-        "scroll_window": build("window", True),
-        "scroll_region": build("region", True),
-        "shot_all": build("two", False),
-        "shot_display": build("monitor", False),
-        "shot_window": build("window", False),
-        "shot_region": build("region", False),
-    }
+def make_capture_icons(target_h=56):
+    """제공된 SVG를 렌더한 assets/cap_{mode}.png 를 '변형 없이' 로드.
+    원본 가로세로 비율(240:190)을 유지한 채 높이 target_h 로만 맞춰 축소한다."""
+    icons = {}
+    for m in CAPTURE_ICON_MODES:
+        try:
+            p = resource_path(os.path.join("assets", f"cap_{m}.png"))
+            im = Image.open(p).convert("RGBA")
+            w, h = im.size
+            nw = max(1, round(target_h * w / h))     # 비율 유지
+            im = im.resize((nw, target_h), Image.LANCZOS)
+            icons[m] = ImageTk.PhotoImage(im)
+        except Exception:
+            icons[m] = ImageTk.PhotoImage(
+                Image.new("RGBA", (target_h, target_h), (0, 0, 0, 0)))
+    return icons
 
 
 # ------------------------------------------------------------------
@@ -2215,12 +2139,11 @@ class App:
         top = ttk.Frame(self.root, padding=(12, 10, 12, 4))
         top.pack(fill="x")
         self.btn_bar = top
-        self._icon_imgs = make_capture_icons(62, 40, margin=5)
-        modes = ["scroll_display", "scroll_window", "scroll_region",
-                 "shot_all", "shot_display", "shot_window", "shot_region"]
+        self._icon_imgs = make_capture_icons(56)
+        modes = CAPTURE_ICON_MODES
         self.cap_buttons = []
         for i, m in enumerate(modes):
-            b = ttk.Button(top, image=self._icon_imgs[m], padding=(2, 3),
+            b = ttk.Button(top, image=self._icon_imgs[m], padding=(1, 2),
                            style="Icon.TButton",
                            command=lambda mm=m: self.start_capture(mm))
             b.grid(row=0, column=i, sticky="nsew", padx=2)
