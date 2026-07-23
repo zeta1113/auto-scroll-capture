@@ -1949,8 +1949,8 @@ class App:
         self.cfg = load_cfg()
 
         self.root = tk.Tk()
-        self.root.geometry("560x700")
-        self.root.minsize(520, 620)
+        self.root.geometry("560x760")
+        self.root.minsize(520, 680)
         self.root.configure(bg=MC["bg"])
         try:
             ico = resource_path("icon.ico")
@@ -2266,7 +2266,10 @@ class App:
                         variable=self.opt_auto_copy,
                         command=self._save_cfg).pack(anchor="w")
 
-        # 2칸: 언어 / 항상 위에 위치
+        # 2칸: 항상 위에 위치(맨 위) / 언어 / 단축키 매핑 / 업데이트 확인
+        ttk.Checkbutton(col2, text=self.t("opt_on_top"),
+                        variable=self.opt_on_top,
+                        command=self._toggle_topmost).pack(anchor="w", pady=(0, 4))
         langf = ttk.Frame(col2)
         langf.pack(anchor="w", fill="x")
         ttk.Label(langf, text=self.t("lbl_language")).pack(side="left")
@@ -2279,9 +2282,6 @@ class App:
         # 단축키 매핑 버튼 (언어 밑)
         ttk.Button(col2, text=self.t("btn_hotkeys"), style="Secondary.TButton",
                    command=self._open_hotkeys).pack(anchor="w", pady=(6, 0))
-        ttk.Checkbutton(col2, text=self.t("opt_on_top"),
-                        variable=self.opt_on_top,
-                        command=self._toggle_topmost).pack(anchor="w", pady=(4, 0))
         if GITHUB_REPO and updater is not None:
             ttk.Button(col2, text=self.t("btn_check_update"),
                        style="Secondary.TButton",
@@ -2333,7 +2333,7 @@ class App:
                    command=self.refresh_list).pack(side="right")
 
         canvas = tk.Canvas(listf, borderwidth=0, highlightthickness=0,
-                           bg=MC["bg"])
+                           bg=MC["bg"], height=295)   # 약 3.5개 항목이 보이는 높이
         vsb = ttk.Scrollbar(listf, orient="vertical", command=canvas.yview,
                             style="Thin.Vertical.TScrollbar")
         canvas.configure(yscrollcommand=vsb.set)

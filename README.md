@@ -67,7 +67,10 @@ auto-capture/
 ## 릴리즈 정보
 
 - 최신 빌드 및 전체 이력은 [`release/RELEASES.md`](release/RELEASES.md) 참고.
+- 📥 **다운로드**: [최신 릴리스(v1.4.12)](https://github.com/zeta1113/auto-scroll-capture/releases/latest) 에서 `ScrollCapture_Setup_v1.4.12.exe`
+- 🔔 자동 업데이트: `GITHUB_REPO = "zeta1113/auto-scroll-capture"` 설정됨 — 새 릴리스가 올라오면 앱이 자동 감지해 알림
 - 현재 최신: **v1.4.12** — `release/ScrollCapture_Setup_v1.4.12.exe` (정식 설치 파일, 코드 서명됨)
+  - v1.4.12(UI 개선): 요소 간격 축소·기본 버튼 크기 축소, 옵션 2열 '항상 위에 위치'를 맨 위로, 파일 목록 3.5개 표시, 자동 업데이트 활성화
   - v1.4.12: **Clean Material UI 스킨** 적용 — 오션 블루(#03A9F4) 포인트, 흰 배경, 머티리얼 체크박스(파란 채움+흰 체크), Primary/Secondary 버튼, 얇은 커스텀 스크롤바, 리스트 hover(연블루), Pretendard/Noto Sans KR 폰트
   - v1.4.11: **캡처 완료 시 자동으로 클립보드에 복사**(옵션 [캡처 후 클립보드에 자동 복사], 기본 켜짐)
   - v1.4.10: 버튼 아이콘을 **캡처 도구풍(파란 화면 채움 + 진한 테두리, 플랫)**으로 교체, 버튼에 여백 10px만 남기고 꽉 차게 확대
