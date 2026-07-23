@@ -1,0 +1,26 @@
+# 빌드 산출물
+/build/
+# 릴리스 설치 파일(대용량) — GitHub Releases 로 배포. 기록(md)만 포함
+/release/*
+!/release/RELEASES.md
+
+# 캡처 결과 이미지
+/capture/
+/source/capture/
+
+# 코드서명 인증서(빌드 시 자동 생성)
+/cert/
+
+# 파이썬 캐시 / 빌드 스펙
+__pycache__/
+*.pyc
+*.pyo
+*.spec
+
+# 로컬 에이전트/세션 데이터
+/.claude/
+
+# OS
+Thumbs.db
+desktop.ini
+.DS_Store
