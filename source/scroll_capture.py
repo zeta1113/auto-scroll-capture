@@ -1842,6 +1842,7 @@ MC = {
     "muted": "#757575",          # Muted Gray
     "border": "#E0E0E0",         # Line Gray
     "list_hover": "#E1F5FE",     # 매우 연한 블루
+    "card": "#F4F6F9",           # 아이콘 카드 배경색
     "thumb": "#BDBDBD",
     "thumb_hover": "#9E9E9E",
     "white": "#FFFFFF",
@@ -1982,13 +1983,13 @@ class App:
         st.map("Path.TButton",
                background=[("active", C["surface"]), ("pressed", C["surface"])],
                bordercolor=[("active", C["primary"])])
-        # 캡처 아이콘 버튼(플랫, 흰 배경, hover 시 연블루)
-        st.configure("Icon.TButton", background=C["white"], borderwidth=1,
+        # 캡처 아이콘 버튼(카드 배경색으로 꽉 채움, hover 시 테두리 강조)
+        st.configure("Icon.TButton", background=C["card"], borderwidth=1,
                      bordercolor=C["border"], relief="solid", padding=0,
-                     focuscolor=C["white"])
+                     focuscolor=C["card"])
         st.map("Icon.TButton",
-               background=[("active", C["list_hover"]),
-                           ("pressed", C["list_hover"]),
+               background=[("active", C["card"]),
+                           ("pressed", C["card"]),
                            ("disabled", C["surface"])],
                bordercolor=[("active", C["primary"])])
         # 얇은 스크롤바
@@ -2259,8 +2260,8 @@ class App:
         listf.pack(fill="both", expand=True, padx=14, pady=(0, 6))
         head = ttk.Frame(listf)
         head.pack(fill="x")
-        ttk.Button(head, text=self.t("btn_refresh"), style="Secondary.TButton",
-                   command=self.refresh_list).pack(side="right")
+        ttk.Button(head, text=self.t("btn_refresh"), style="Path.TButton",
+                   width=6, command=self.refresh_list).pack(side="right")
 
         canvas = tk.Canvas(listf, borderwidth=0, highlightthickness=0,
                            bg=MC["bg"], height=345)   # 약 4개 항목이 보이는 높이
@@ -2546,10 +2547,10 @@ class App:
         # 열기 / 복사 버튼(세로 배치)
         btns = tk.Frame(inner, bg=C["white"])
         btns.pack(side="right")
-        ttk.Button(btns, text=self.t("btn_open_item"), style="Secondary.TButton",
-                   command=lambda p=path: os.startfile(p)).pack(anchor="e")
+        ttk.Button(btns, text=self.t("btn_open_item"), style="Path.TButton",
+                   width=5, command=lambda p=path: os.startfile(p)).pack(anchor="e")
         copy_btn = ttk.Button(btns, text=self.t("btn_copy"),
-                              style="Secondary.TButton")
+                              style="Path.TButton", width=5)
         copy_btn.config(command=lambda p=path, b=copy_btn: self._copy_image(p, b))
         copy_btn.pack(anchor="e", pady=(4, 0))
 
