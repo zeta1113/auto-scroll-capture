@@ -182,93 +182,92 @@ def get_window_rect(hwnd):
 # ------------------------------------------------------------------
 # 캡처 버튼 아이콘 (심플한 벡터 아이콘을 PIL 로 그려 생성)
 # ------------------------------------------------------------------
-def make_capture_icons(size=70, margin=10):
-    """7개 캡처 버튼용 아이콘을 {mode: PhotoImage} 로 생성.
-    캡처 도구풍(파란 화면 채움 + 진한 테두리, 플랫). 글리프는 사방 margin(px)만
-    남기고 버튼에 꽉 차게 그린다. 스크롤 계열은 우하단에 파란 원 + 흰 아래화살표 배지."""
+def make_capture_icons(w=62, h=40, margin=5):
+    """7개 캡처 버튼용 아이콘(가로 직사각형)을 {mode: PhotoImage} 로 생성.
+    라인 스타일(#2C5F8A): 화면은 선만, 스탠드/점만 채움, 스크롤 계열은 단순 직선 아래화살표.
+    (제공된 SVG 아이콘 세트 기반)"""
     from PIL import ImageDraw
     ss = 4
-    S = size * ss
-    STROKE = (44, 62, 80, 255)     # 진한 테두리(#2c3e50)
-    SCREEN = (74, 158, 255, 255)   # 파란 화면(#4a9eff)
+    W, H = w * ss, h * ss
+    LINE = (44, 95, 138, 255)      # #2C5F8A
     WHITE = (255, 255, 255, 255)
-    lw = max(3, S // 28)
+    lw = max(3, int(H * 0.075))
     m = int(margin * ss)
-    X0, Y0, X1, Y1 = m, m, S - m, S - m
-    GW = X1 - X0
+    X0, Y0, X1, Y1 = m, m, W - m, H - m
+    GW, GH = X1 - X0, Y1 - Y0
 
-    def monitor(d):
-        sb = Y1 - GW * 0.14                  # 스탠드 공간
-        d.rounded_rectangle([X0, Y0, X1, sb], radius=GW * 0.07,
-                            fill=SCREEN, outline=STROKE, width=lw)
-        cx = (X0 + X1) / 2
-        d.line([cx, sb, cx, Y1], fill=STROKE, width=lw)
-        d.line([cx - GW * 0.16, Y1, cx + GW * 0.16, Y1], fill=STROKE, width=lw)
+    def monitor(d, ox=0, oy=0, sc=1.0, stand=True, fill=None):
+        cx = (X0 + X1) / 2 + ox
+        mw, mh = GW * 0.60 * sc, GH * 0.60 * sc
+        x0, x1 = cx - mw / 2, cx + mw / 2
+        y0 = (Y0 + GH * 0.06) + oy
+        y1 = y0 + mh
+        d.rounded_rectangle([x0, y0, x1, y1], radius=mh * 0.20,
+                            fill=fill, outline=LINE, width=lw)
+        if stand:
+            nw, nh = mw * 0.11, GH * 0.12
+            d.rectangle([cx - nw, y1, cx + nw, y1 + nh], fill=LINE)
+            bw = mw * 0.34
+            d.rounded_rectangle([cx - bw, y1 + nh, cx + bw, y1 + nh + GH * 0.10],
+                                radius=GH * 0.05, fill=LINE)
+        return (x0, y0, x1, y1)
 
     def window(d):
-        r = GW * 0.06
-        ty = Y0 + (Y1 - Y0) * 0.26
-        # 파란 타이틀바(상단만 라운드)
-        d.rounded_rectangle([X0, Y0, X1, ty], radius=r, fill=SCREEN)
-        d.rectangle([X0, ty - r, X1, ty], fill=SCREEN)
-        d.line([X0, ty, X1, ty], fill=STROKE, width=lw)
-        d.rounded_rectangle([X0, Y0, X1, Y1], radius=r, outline=STROKE, width=lw)
-        rr = lw * 0.8
+        d.rounded_rectangle([X0, Y0, X1, Y1], radius=GH * 0.14,
+                            outline=LINE, width=lw)
+        ty = Y0 + GH * 0.30
+        d.line([X0, ty, X1, ty], fill=LINE, width=lw)
+        r = lw * 0.72
         cy = (Y0 + ty) / 2
         for i in range(3):
-            cx = X0 + GW * 0.15 + i * (rr * 3.2)
-            d.ellipse([cx - rr, cy - rr, cx + rr, cy + rr], fill=WHITE)
+            cx = X0 + GW * 0.08 + i * (r * 3.4)
+            d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=LINE)
 
     def region(d):
-        dash, gap = GW * 0.10, GW * 0.05
-        def hline(y):
+        dash, gap = GW * 0.06, GW * 0.045
+        def hl(y):
             x = X0
             while x < X1:
-                d.line([x, y, min(x + dash, X1), y], fill=STROKE, width=lw)
+                d.line([x, y, min(x + dash, X1), y], fill=LINE, width=lw)
                 x += dash + gap
-        def vline(x):
+        def vl(x):
             y = Y0
             while y < Y1:
-                d.line([x, y, x, min(y + dash, Y1)], fill=STROKE, width=lw)
+                d.line([x, y, x, min(y + dash, Y1)], fill=LINE, width=lw)
                 y += dash + gap
-        hline(Y0); hline(Y1); vline(X0); vline(X1)
-        cx, cy = (X0 + X1) / 2, (Y0 + Y1) / 2
-        cl = GW * 0.15
-        d.line([cx - cl, cy, cx + cl, cy], fill=SCREEN, width=lw + ss)
-        d.line([cx, cy - cl, cx, cy + cl], fill=SCREEN, width=lw + ss)
+        hl(Y0); hl(Y1); vl(X0); vl(X1)
 
-    def two_monitors(d):
-        gap = GW * 0.10
-        w = (GW - gap) / 2
-        y0 = Y0 + GW * 0.10
-        y1 = Y1 - GW * 0.22
-        for i in range(2):
-            xa = X0 + i * (w + gap)
-            d.rounded_rectangle([xa, y0, xa + w, y1], radius=w * 0.10,
-                                fill=SCREEN, outline=STROKE, width=lw)
+    def two(d):
+        # 뒤 모니터(좌상, 스탠드 없음) → 앞 모니터(우하, 흰 채움 + 스탠드)
+        monitor(d, ox=-GW * 0.13, oy=-GH * 0.10, sc=0.92, stand=False)
+        monitor(d, ox=GW * 0.13, oy=GH * 0.06, sc=0.92, stand=True, fill=WHITE)
+
+    def arrow(d, cyc):
         cx = (X0 + X1) / 2
-        d.line([cx, y1, cx, Y1], fill=STROKE, width=lw)
-        d.line([cx - GW * 0.16, Y1, cx + GW * 0.16, Y1], fill=STROKE, width=lw)
+        ah = GH * 0.22
+        y0, y1 = cyc - ah, cyc + ah
+        aw = GW * 0.05
+        d.line([cx, y0, cx, y1], fill=LINE, width=lw)
+        d.line([cx - aw, y1 - aw * 1.5, cx, y1], fill=LINE, width=lw)
+        d.line([cx + aw, y1 - aw * 1.5, cx, y1], fill=LINE, width=lw)
 
-    def badge(d):
-        rad = GW * 0.23
-        cx, cy = X1 - rad, Y1 - rad
-        d.ellipse([cx - rad, cy - rad, cx + rad, cy + rad],
-                  fill=SCREEN, outline=WHITE, width=max(2, int(lw * 0.7)))
-        aw, ah = rad * 0.42, rad * 0.5
-        w2 = max(3, int(lw * 0.95))
-        d.line([cx, cy - ah, cx, cy + ah], fill=WHITE, width=w2)
-        d.line([cx - aw, cy + ah - aw, cx, cy + ah], fill=WHITE, width=w2)
-        d.line([cx + aw, cy + ah - aw, cx, cy + ah], fill=WHITE, width=w2)
+    ARROW_CY = {"monitor": Y0 + GH * 0.30, "window": Y0 + GH * 0.58,
+                "region": (Y0 + Y1) / 2}
 
     def build(kind, scroll):
-        img = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+        img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
         d = ImageDraw.Draw(img)
-        {"monitor": monitor, "window": window,
-         "region": region, "two": two_monitors}[kind](d)
+        if kind == "monitor":
+            monitor(d)
+        elif kind == "window":
+            window(d)
+        elif kind == "region":
+            region(d)
+        elif kind == "two":
+            two(d)
         if scroll:
-            badge(d)
-        return ImageTk.PhotoImage(img.resize((size, size), Image.LANCZOS))
+            arrow(d, ARROW_CY.get(kind, (Y0 + Y1) / 2))
+        return ImageTk.PhotoImage(img.resize((w, h), Image.LANCZOS))
 
     return {
         "scroll_display": build("monitor", True),
@@ -2051,6 +2050,14 @@ class App:
         st.map("Secondary.TButton",
                background=[("active", C["surface"]), ("pressed", C["surface"])],
                bordercolor=[("active", C["primary"])])
+        # 경로(변경/열기) 전용 컴팩트 버튼 — 가로 폭 축소
+        st.configure("Path.TButton", background=C["white"],
+                     foreground=C["text"], bordercolor=C["border"],
+                     borderwidth=1, relief="solid", font=self.f_cap,
+                     padding=(2, 3), focuscolor=C["white"])
+        st.map("Path.TButton",
+               background=[("active", C["surface"]), ("pressed", C["surface"])],
+               bordercolor=[("active", C["primary"])])
         # 캡처 아이콘 버튼(플랫, 흰 배경, hover 시 연블루)
         st.configure("Icon.TButton", background=C["white"], borderwidth=1,
                      bordercolor=C["border"], relief="solid", padding=0,
@@ -2205,18 +2212,18 @@ class App:
 
         # 캡처 버튼 7개 (아이콘 + 툴팁). 한 줄로 가로 정렬.
         #  스크롤 3종(디스플레이/윈도우/영역) + 즉시 캡처 4종(전체/디스플레이/윈도우/영역)
-        top = ttk.Frame(self.root, padding=(14, 12, 14, 6))
+        top = ttk.Frame(self.root, padding=(12, 10, 12, 4))
         top.pack(fill="x")
         self.btn_bar = top
-        self._icon_imgs = make_capture_icons(70, margin=10)
+        self._icon_imgs = make_capture_icons(62, 40, margin=5)
         modes = ["scroll_display", "scroll_window", "scroll_region",
                  "shot_all", "shot_display", "shot_window", "shot_region"]
         self.cap_buttons = []
         for i, m in enumerate(modes):
-            b = ttk.Button(top, image=self._icon_imgs[m], padding=0,
+            b = ttk.Button(top, image=self._icon_imgs[m], padding=(2, 3),
                            style="Icon.TButton",
                            command=lambda mm=m: self.start_capture(mm))
-            b.grid(row=0, column=i, sticky="nsew", padx=3)
+            b.grid(row=0, column=i, sticky="nsew", padx=2)
             top.columnconfigure(i, weight=1, uniform="cap")
             Tooltip(b, self.t(f"tip_{m}_t"), self.t(f"tip_{m}_h"),
                     key=(lambda mm=m: self._hotkey_text(mm)))
@@ -2312,10 +2319,10 @@ class App:
         dirf.pack(fill="x", padx=14, pady=(4, 5))
         ttk.Entry(dirf, textvariable=self.save_dir).pack(
             side="left", fill="x", expand=True)
-        ttk.Button(dirf, text=self.t("btn_change"), style="Secondary.TButton",
-                   command=self.change_dir).pack(side="left", padx=(8, 0))
-        ttk.Button(dirf, text=self.t("btn_open"), style="Secondary.TButton",
-                   command=self.open_dir).pack(side="left", padx=(6, 0))
+        ttk.Button(dirf, text=self.t("btn_change"), style="Path.TButton",
+                   width=4, command=self.change_dir).pack(side="left", padx=(8, 0))
+        ttk.Button(dirf, text=self.t("btn_open"), style="Path.TButton",
+                   width=4, command=self.open_dir).pack(side="left", padx=(4, 0))
 
         # 상태
         if not self.status.get():
@@ -2333,7 +2340,7 @@ class App:
                    command=self.refresh_list).pack(side="right")
 
         canvas = tk.Canvas(listf, borderwidth=0, highlightthickness=0,
-                           bg=MC["bg"], height=295)   # 약 3.5개 항목이 보이는 높이
+                           bg=MC["bg"], height=345)   # 약 4개 항목이 보이는 높이
         vsb = ttk.Scrollbar(listf, orient="vertical", command=canvas.yview,
                             style="Thin.Vertical.TScrollbar")
         canvas.configure(yscrollcommand=vsb.set)
