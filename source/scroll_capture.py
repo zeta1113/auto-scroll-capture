@@ -2037,7 +2037,7 @@ class App:
         # Primary 버튼(파란 배경/흰 글자)
         st.configure("Primary.TButton", background=C["primary"],
                      foreground=C["white"], font=self.f_bold, borderwidth=0,
-                     relief="flat", padding=(16, 8), focuscolor=C["primary"])
+                     relief="flat", padding=(12, 5), focuscolor=C["primary"])
         st.map("Primary.TButton",
                background=[("active", C["primary_hover"]),
                            ("pressed", C["primary_hover"]),
@@ -2046,8 +2046,8 @@ class App:
         # Secondary 버튼(흰 배경/회색 테두리)
         st.configure("Secondary.TButton", background=C["white"],
                      foreground=C["text"], bordercolor=C["border"],
-                     borderwidth=1, relief="solid", font=self.f_text,
-                     padding=(12, 6), focuscolor=C["white"])
+                     borderwidth=1, relief="solid", font=self.f_cap,
+                     padding=(8, 3), focuscolor=C["white"])
         st.map("Secondary.TButton",
                background=[("active", C["surface"]), ("pressed", C["surface"])],
                bordercolor=[("active", C["primary"])])
@@ -2116,7 +2116,7 @@ class App:
                         ("Checkbutton.label", {"sticky": "nswe"})]})]})])
             st.configure("TCheckbutton", background=C["bg"],
                          foreground=C["text"], font=self.f_text,
-                         padding=(0, 3))
+                         padding=(0, 1))
         except Exception:
             pass
 
@@ -2205,7 +2205,7 @@ class App:
 
         # 캡처 버튼 7개 (아이콘 + 툴팁). 한 줄로 가로 정렬.
         #  스크롤 3종(디스플레이/윈도우/영역) + 즉시 캡처 4종(전체/디스플레이/윈도우/영역)
-        top = ttk.Frame(self.root, padding=(20, 18, 20, 10))
+        top = ttk.Frame(self.root, padding=(14, 12, 14, 6))
         top.pack(fill="x")
         self.btn_bar = top
         self._icon_imgs = make_capture_icons(70, margin=10)
@@ -2223,7 +2223,7 @@ class App:
             self.cap_buttons.append(b)
 
         # 진행 바(%) — 캡처 프로그램을 숨기지 않을 때 표시. 진행률에 따라 채워짐.
-        self.prog_frame = ttk.Frame(self.root, padding=(20, 0, 20, 0))
+        self.prog_frame = ttk.Frame(self.root, padding=(14, 0, 14, 0))
         self.prog_var = tk.IntVar(value=0)
         self.progress = ttk.Progressbar(self.prog_frame, mode="determinate",
                                         maximum=100, variable=self.prog_var,
@@ -2235,8 +2235,8 @@ class App:
 
         # ===== 옵션 영역 =====
         optf = ttk.LabelFrame(self.root, text=self.t("lf_options"),
-                              padding=(16, 10, 16, 12))
-        optf.pack(fill="x", padx=20, pady=(6, 8))
+                              padding=(12, 6, 12, 8))
+        optf.pack(fill="x", padx=14, pady=(4, 5))
 
         # 텍스트 옵션 2칸
         cols = ttk.Frame(optf)
@@ -2278,10 +2278,10 @@ class App:
         self.lang_cb.bind("<<ComboboxSelected>>", self._on_lang)
         # 단축키 매핑 버튼 (언어 밑)
         ttk.Button(col2, text=self.t("btn_hotkeys"), style="Secondary.TButton",
-                   command=self._open_hotkeys).pack(anchor="w", pady=(8, 0))
+                   command=self._open_hotkeys).pack(anchor="w", pady=(6, 0))
         ttk.Checkbutton(col2, text=self.t("opt_on_top"),
                         variable=self.opt_on_top,
-                        command=self._toggle_topmost).pack(anchor="w", pady=(6, 0))
+                        command=self._toggle_topmost).pack(anchor="w", pady=(4, 0))
         if GITHUB_REPO and updater is not None:
             ttk.Button(col2, text=self.t("btn_check_update"),
                        style="Secondary.TButton",
@@ -2289,7 +2289,7 @@ class App:
 
         # 스크롤 속도 (옵션 영역 내)
         spd = ttk.Frame(optf)
-        spd.pack(fill="x", pady=(10, 0))
+        spd.pack(fill="x", pady=(6, 0))
         ttk.Label(spd, text=self.t("lbl_speed")).pack(side="left")
         self.speed_lbl = ttk.Label(spd, width=4, style="Primary.TLabel")
         self.speed_lbl.pack(side="left", padx=(6, 6))
@@ -2308,8 +2308,8 @@ class App:
 
         # 저장 폴더
         dirf = ttk.LabelFrame(self.root, text=self.t("lf_save_folder"),
-                              padding=(16, 10, 16, 12))
-        dirf.pack(fill="x", padx=20, pady=8)
+                              padding=(12, 6, 12, 8))
+        dirf.pack(fill="x", padx=14, pady=(4, 5))
         ttk.Entry(dirf, textvariable=self.save_dir).pack(
             side="left", fill="x", expand=True)
         ttk.Button(dirf, text=self.t("btn_change"), style="Secondary.TButton",
@@ -2321,12 +2321,12 @@ class App:
         if not self.status.get():
             self.status.set(self.t("status_ready"))
         ttk.Label(self.root, textvariable=self.status, style="Primary.TLabel",
-                  wraplength=470).pack(fill="x", padx=20, pady=(0, 6))
+                  wraplength=470).pack(fill="x", padx=14, pady=(0, 4))
 
         # 파일 목록
         listf = ttk.LabelFrame(self.root, text=self.t("lf_captured"),
-                               padding=(12, 8, 12, 10))
-        listf.pack(fill="both", expand=True, padx=20, pady=(0, 8))
+                               padding=(10, 6, 10, 8))
+        listf.pack(fill="both", expand=True, padx=14, pady=(0, 6))
         head = ttk.Frame(listf)
         head.pack(fill="x")
         ttk.Button(head, text=self.t("btn_refresh"), style="Secondary.TButton",
@@ -2583,7 +2583,7 @@ class App:
         row = tk.Frame(self.list_inner, bg=C["white"])
         row.pack(fill="x")
         inner = tk.Frame(row, bg=C["white"])
-        inner.pack(fill="x", padx=4, pady=6)
+        inner.pack(fill="x", padx=4, pady=4)
         try:
             im = Image.open(path)
             im.thumbnail((120, 80))

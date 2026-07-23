@@ -7,5 +7,4 @@ APP_TITLE = "스크롤 자동 캡처"       # 화면 표시용
 
 # GitHub 자동 업데이트 확인용 저장소 ("사용자명/저장소명").
 # 비워두면 업데이트 확인 기능이 비활성화됩니다.
-# 예: GITHUB_REPO = "zeta1113/scroll-capture"
-GITHUB_REPO = ""
+GITHUB_REPO = "zeta1113/auto-scroll-capture"
