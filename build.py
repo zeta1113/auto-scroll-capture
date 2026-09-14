@@ -30,10 +30,14 @@ ICON = os.path.join(SRC, "icon.ico")
 CERT_CER = os.path.join(ROOT, "cert", "ScrollCapture.cer")
 APP_NAME = "ScrollCapture"
 
+_LOCALAPPDATA = os.environ.get("LOCALAPPDATA", "")
 INNO_CANDIDATES = [
+    r"C:\Program Files\Inno Setup 7\ISCC.exe",
+    r"C:\Program Files (x86)\Inno Setup 7\ISCC.exe",
+    os.path.join(_LOCALAPPDATA, "Programs", "Inno Setup 7", "ISCC.exe"),
     r"C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
     r"C:\Program Files\Inno Setup 6\ISCC.exe",
-    os.path.join(os.environ.get("LOCALAPPDATA", ""), "Programs", "Inno Setup 6", "ISCC.exe"),
+    os.path.join(_LOCALAPPDATA, "Programs", "Inno Setup 6", "ISCC.exe"),
     r"C:\Program Files (x86)\Inno Setup 5\ISCC.exe",
 ]
 

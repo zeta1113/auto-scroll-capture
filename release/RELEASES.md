@@ -34,3 +34,8 @@
 | v1.4.12 | 2026-07-24 00:45:02 | 설치 파일(Setup) | `ScrollCapture_Setup_v1.4.12.exe` | 68.5 MB |
 | v1.4.12 | 2026-07-24 00:54:57 | 설치 파일(Setup) | `ScrollCapture_Setup_v1.4.12.exe` | 68.5 MB |
 | v1.4.12 | 2026-07-24 01:00:04 | 설치 파일(Setup) | `ScrollCapture_Setup_v1.4.12.exe` | 68.5 MB |
+| v1.4.13 | 2026-09-14 15:34:48 | 포터블(Portable) exe | `ScrollCapture_Portable_v1.4.13.exe` | 67.1 MB |
+| v1.4.13 | 2026-09-14 16:02:06 | 포터블(Portable) exe | `ScrollCapture_Portable_v1.4.13.exe` | 67.1 MB |
+| v1.4.13 | 2026-09-14 16:03:05 | 포터블(Portable) exe | `ScrollCapture_Portable_v1.4.13.exe` | 67.1 MB |
+| v1.4.13 | 2026-09-14 16:05:52 | 설치 파일(Setup) | `ScrollCapture_Setup_v1.4.13.exe` | 68.5 MB |
+| v1.4.13 | 2026-09-14 16:08:09 | 설치 파일(Setup) | `ScrollCapture_Setup_v1.4.13.exe` | 68.5 MB |

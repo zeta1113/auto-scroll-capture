@@ -90,25 +90,28 @@ DEFAULT_CFG = {
     "sticky": False,         # 웹페이지 상단 고정 메뉴 처리
     "hide_mouse": True,      # 캡처 시 마우스 숨기기
     "auto_copy": True,       # 캡처 후 클립보드에 자동 복사
+    "split_enabled": False,  # 높이 분할 자르기
+    "split_height": 2000,    # 분할 높이(px)
     "speed_idx": 1,          # 1x
     "save_dir": "",
     "hotkeys": {},           # {mode: {"mods":int, "vk":int, "text":str}} (비면 기본값)
+    "options_expanded": False,  # 옵션 영역 더보기 펼침 상태
 }
 
 # 전역 단축키 기본값: mode -> (modifiers, virtual-key, 표시문자열)
 #   MOD_ALT=0x0001, MOD_CONTROL=0x0002, MOD_SHIFT=0x0004, MOD_WIN=0x0008
-CTRL_ALT = 0x0002 | 0x0001
+ALT_SHIFT = 0x0001 | 0x0004
 DEFAULT_HOTKEYS = {
-    "scroll_display": (CTRL_ALT, 0x31, "Ctrl + Alt + 1"),
-    "scroll_window":  (CTRL_ALT, 0x32, "Ctrl + Alt + 2"),
-    "scroll_region":  (CTRL_ALT, 0x33, "Ctrl + Alt + 3"),
-    "shot_all":       (CTRL_ALT, 0x34, "Ctrl + Alt + 4"),
-    "shot_display":   (CTRL_ALT, 0x35, "Ctrl + Alt + 5"),
-    "shot_window":    (CTRL_ALT, 0x36, "Ctrl + Alt + 6"),
-    "shot_region":    (CTRL_ALT, 0x37, "Ctrl + Alt + 7"),
+    "shot_region":    (ALT_SHIFT, 0x31, "Alt + Shift + 1"),
+    "shot_window":    (ALT_SHIFT, 0x32, "Alt + Shift + 2"),
+    "shot_display":   (ALT_SHIFT, 0x33, "Alt + Shift + 3"),
+    "shot_all":       (ALT_SHIFT, 0x34, "Alt + Shift + 4"),
+    "scroll_region":  (ALT_SHIFT, 0x35, "Alt + Shift + 5"),
+    "scroll_window":  (ALT_SHIFT, 0x36, "Alt + Shift + 6"),
+    "scroll_display": (ALT_SHIFT, 0x37, "Alt + Shift + 7"),
 }
-HOTKEY_MODES = ["scroll_display", "scroll_window", "scroll_region",
-                "shot_all", "shot_display", "shot_window", "shot_region"]
+HOTKEY_MODES = ["shot_region", "shot_window", "shot_display", "shot_all",
+                "scroll_region", "scroll_window", "scroll_display"]
 
 
 def load_cfg():
@@ -182,8 +185,8 @@ def get_window_rect(hwnd):
 # ------------------------------------------------------------------
 # 캡처 버튼 아이콘 (심플한 벡터 아이콘을 PIL 로 그려 생성)
 # ------------------------------------------------------------------
-CAPTURE_ICON_MODES = ["scroll_display", "scroll_window", "scroll_region",
-                      "shot_all", "shot_display", "shot_window", "shot_region"]
+CAPTURE_ICON_MODES = ["shot_region", "shot_window", "shot_display", "shot_all",
+                      "scroll_region", "scroll_window", "scroll_display"]
 
 
 def make_capture_icons(target_h=56):
@@ -245,7 +248,11 @@ TR = {
         "opt_hide_mouse": "캡처 시 마우스 숨기기",
         "opt_auto_copy": "캡처 후 클립보드에 자동 복사",
         "copied_status": "클립보드 복사됨",
+        "opt_split": "높이 분할 자르기",
+        "lbl_split_height": "높이(px)",
         "lf_options": "옵션",
+        "btn_more": "더보기",
+        "btn_less": "숨기기",
         "opt_on_top": "항상 위에 위치",
         "speed_hint": "빠를수록 정확도가 떨어질 수 있어요",
         "lbl_speed": "스크롤 속도",
@@ -266,6 +273,7 @@ TR = {
         "status_capturing": "캡처 중...",
         "status_capturing_fmt": "캡처 중... (높이 {h}px)",
         "status_done_fmt": "완료: {name}",
+        "status_done_split_fmt": "완료: {n}개 파일로 분할 저장됨",
         "status_cancelled": "취소되었습니다",
         "status_error": "오류 / 안내",
         "guide_region": "캡처할 '스크롤 영역'을 드래그하세요   (ESC = 취소)",
@@ -323,7 +331,11 @@ TR = {
         "opt_hide_mouse": "Hide cursor while capturing",
         "opt_auto_copy": "Copy to clipboard after capture",
         "copied_status": "Copied to clipboard",
+        "opt_split": "Split by height",
+        "lbl_split_height": "Height(px)",
         "lf_options": "Options",
+        "btn_more": "More",
+        "btn_less": "Less",
         "opt_on_top": "Always on top",
         "speed_hint": "Faster may reduce accuracy",
         "lbl_speed": "Scroll speed",
@@ -344,6 +356,7 @@ TR = {
         "status_capturing": "Capturing...",
         "status_capturing_fmt": "Capturing... (height {h}px)",
         "status_done_fmt": "Done: {name}",
+        "status_done_split_fmt": "Done: split into {n} files",
         "status_cancelled": "Cancelled",
         "status_error": "Error / Notice",
         "guide_region": "Drag the scrolling area to capture   (ESC = cancel)",
@@ -401,7 +414,11 @@ TR = {
         "opt_hide_mouse": "キャプチャ中はカーソルを隠す",
         "opt_auto_copy": "キャプチャ後クリップボードへ自動コピー",
         "copied_status": "クリップボードにコピー済み",
+        "opt_split": "高さで分割",
+        "lbl_split_height": "高さ(px)",
         "lf_options": "オプション",
+        "btn_more": "もっと見る",
+        "btn_less": "閉じる",
         "opt_on_top": "常に手前に表示",
         "speed_hint": "速いほど精度が下がる場合があります",
         "lbl_speed": "スクロール速度",
@@ -422,6 +439,7 @@ TR = {
         "status_capturing": "キャプチャ中...",
         "status_capturing_fmt": "キャプチャ中... (高さ {h}px)",
         "status_done_fmt": "完了: {name}",
+        "status_done_split_fmt": "完了: {n}個のファイルに分割保存されました",
         "status_cancelled": "キャンセルされました",
         "status_error": "エラー / お知らせ",
         "guide_region": "キャプチャする'スクロール範囲'をドラッグしてください   (ESC = キャンセル)",
@@ -479,7 +497,11 @@ TR = {
         "opt_hide_mouse": "截图时隐藏鼠标",
         "opt_auto_copy": "截图后自动复制到剪贴板",
         "copied_status": "已复制到剪贴板",
+        "opt_split": "按高度分割裁切",
+        "lbl_split_height": "高度(px)",
         "lf_options": "选项",
+        "btn_more": "更多",
+        "btn_less": "收起",
         "opt_on_top": "始终置顶",
         "speed_hint": "速度越快，精度可能越低",
         "lbl_speed": "滚动速度",
@@ -500,6 +522,7 @@ TR = {
         "status_capturing": "正在截图...",
         "status_capturing_fmt": "正在截图... (高度 {h}px)",
         "status_done_fmt": "完成: {name}",
+        "status_done_split_fmt": "完成: 已分割保存为 {n} 个文件",
         "status_cancelled": "已取消",
         "status_error": "错误 / 提示",
         "guide_region": "拖动要截取的'滚动区域'   (ESC = 取消)",
@@ -1261,6 +1284,29 @@ def save_png(img, out_dir):
     return path
 
 
+def save_png_split(img, out_dir, split_h):
+    """설정된 높이(px)마다 이미지를 잘라 01, 02, 03... 순번으로 저장."""
+    os.makedirs(out_dir, exist_ok=True)
+    H, W = img.shape[:2]
+    split_h = max(1, int(split_h))
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    n = max(1, (H + split_h - 1) // split_h)
+    digits = max(2, len(str(n)))
+    paths = []
+    for i in range(n):
+        y0 = i * split_h
+        y1 = min(H, y0 + split_h)
+        piece = img[y0:y1]
+        idx = str(i + 1).zfill(digits)
+        path = os.path.join(out_dir, f"capture_{ts}_{W}x{H}_{idx}.png")
+        ok, buf = cv2.imencode(".png", piece)
+        if not ok:
+            raise RuntimeError("이미지 인코딩 실패")
+        buf.tofile(path)
+        paths.append(path)
+    return paths
+
+
 # ==================================================================
 # 영역 선택 오버레이
 # ==================================================================
@@ -1648,9 +1694,16 @@ _KEY_SPECIAL = {
 _MOD_KEYSYMS = {"Control_L", "Control_R", "Alt_L", "Alt_R", "Shift_L",
                 "Shift_R", "Win_L", "Win_R", "Super_L", "Super_R",
                 "Meta_L", "Meta_R"}
+# Shift+숫자로 나오는 기호 keysym → 원래 숫자(표시용)
+_SHIFT_DIGIT = {"exclam": "1", "at": "2", "numbersign": "3", "dollar": "4",
+                "percent": "5", "asciicircum": "6", "ampersand": "7",
+                "asterisk": "8", "parenleft": "9", "parenright": "0"}
 
 
 def _key_display_name(keysym):
+    kl = keysym.lower()
+    if kl in _SHIFT_DIGIT:            # Shift+숫자 → 숫자로 표시
+        return _SHIFT_DIGIT[kl]
     if keysym in _KEY_SPECIAL:
         return _KEY_SPECIAL[keysym]
     if len(keysym) == 1:
@@ -1901,6 +1954,10 @@ class App:
         self.opt_sticky = tk.BooleanVar(value=bool(self.cfg.get("sticky", False)))
         self.opt_hide_mouse = tk.BooleanVar(value=bool(self.cfg.get("hide_mouse", True)))
         self.opt_auto_copy = tk.BooleanVar(value=bool(self.cfg.get("auto_copy", True)))
+        self.opt_split_enabled = tk.BooleanVar(value=bool(self.cfg.get("split_enabled", False)))
+        self.split_height_var = tk.StringVar(
+            value=str(int(self.cfg.get("split_height", 2000) or 2000)))
+        self.opt_expanded = tk.BooleanVar(value=bool(self.cfg.get("options_expanded", False)))
         self.speed_idx = tk.IntVar(value=int(self.cfg.get("speed_idx", SPEED_DEFAULT_IDX)))
         self.status = tk.StringVar()
         self._update_info = None   # 사용 가능한 업데이트 정보
@@ -2061,14 +2118,72 @@ class App:
             "sticky": self.opt_sticky.get(),
             "hide_mouse": self.opt_hide_mouse.get(),
             "auto_copy": self.opt_auto_copy.get(),
+            "split_enabled": self.opt_split_enabled.get(),
+            "split_height": self._split_height(),
             "speed_idx": self.speed_idx.get(),
             "save_dir": self.save_dir.get(),
+            "options_expanded": self.opt_expanded.get(),
         })
         save_cfg(self.cfg)
+
+    def _split_height(self):
+        try:
+            v = int(str(self.split_height_var.get()).strip())
+        except (TypeError, ValueError):
+            v = 2000
+        return max(50, v)
+
+    def _validate_digits(self, proposed):
+        return proposed == "" or proposed.isdigit()
+
+    def _update_split_state(self):
+        state = "normal" if self.opt_split_enabled.get() else "disabled"
+        try:
+            self.split_height_entry.config(state=state)
+        except Exception:
+            pass
+
+    def _on_split_toggle(self):
+        self._update_split_state()
+        self._save_cfg()
+
+    def _on_split_height_focusout(self, event=None):
+        self.split_height_var.set(str(self._split_height()))
+        self._save_cfg()
 
     def _toggle_topmost(self):
         self.root.attributes("-topmost", self.opt_on_top.get())
         self._save_cfg()
+
+    # ---------- 옵션 영역 더보기/숨기기 ----------
+    def _toggle_options(self):
+        self.opt_expanded.set(not self.opt_expanded.get())
+        self._apply_options_expanded()
+        self._save_cfg()
+
+    def _apply_options_expanded(self):
+        try:
+            self.opt_content.update_idletasks()
+        except Exception:
+            pass
+        expanded = self.opt_expanded.get()
+        if expanded:
+            self.opt_clip.pack_propagate(True)
+            self.opt_clip.configure(height=1)
+        else:
+            row_h = 24
+            try:
+                col1 = self.opt_content.winfo_children()[0].winfo_children()[0]
+                row_h = max(16, col1.winfo_children()[0].winfo_reqheight())
+            except Exception:
+                pass
+            self.opt_clip.pack_propagate(False)
+            self.opt_clip.configure(height=int(row_h * 3) + 4)
+        try:
+            self.more_btn.config(
+                text=self.t("btn_less") if expanded else self.t("btn_more"))
+        except Exception:
+            pass
 
     # ---------- 전역 단축키 ----------
     def _load_hotkeys(self):
@@ -2169,8 +2284,15 @@ class App:
                               padding=(12, 6, 12, 8))
         optf.pack(fill="x", padx=14, pady=(4, 5))
 
+        # 접었을 때 높이(약 2.5줄)로 잘라 보여주는 클리핑 컨테이너
+        self.opt_clip = ttk.Frame(optf)
+        self.opt_clip.pack(fill="x")
+        opt_content = ttk.Frame(self.opt_clip)
+        opt_content.pack(fill="x", anchor="n")
+        self.opt_content = opt_content
+
         # 텍스트 옵션 2칸
-        cols = ttk.Frame(optf)
+        cols = ttk.Frame(opt_content)
         cols.pack(fill="x")
         col1 = ttk.Frame(cols)
         col1.pack(side="left", fill="both", expand=True, anchor="nw")
@@ -2197,6 +2319,22 @@ class App:
                         variable=self.opt_auto_copy,
                         command=self._save_cfg).pack(anchor="w")
 
+        # 높이 분할 자르기(체크 시 아래 높이 입력 필드 활성화)
+        ttk.Checkbutton(col1, text=self.t("opt_split"),
+                        variable=self.opt_split_enabled,
+                        command=self._on_split_toggle).pack(anchor="w")
+        splitf = ttk.Frame(col1)
+        splitf.pack(anchor="w", fill="x", padx=(20, 0))
+        ttk.Label(splitf, text=self.t("lbl_split_height")).pack(side="left")
+        vcmd = (self.root.register(self._validate_digits), "%P")
+        self.split_height_entry = ttk.Entry(
+            splitf, width=6, justify="right", textvariable=self.split_height_var,
+            validate="key", validatecommand=vcmd)
+        self.split_height_entry.pack(side="left", padx=(6, 2))
+        ttk.Label(splitf, text="px").pack(side="left")
+        self.split_height_entry.bind("<FocusOut>", self._on_split_height_focusout)
+        self._update_split_state()
+
         # 2칸: 항상 위에 위치(맨 위) / 언어 / 단축키 매핑 / 업데이트 확인
         ttk.Checkbutton(col2, text=self.t("opt_on_top"),
                         variable=self.opt_on_top,
@@ -2219,7 +2357,7 @@ class App:
                        command=self._check_update_manual).pack(anchor="w", pady=(4, 0))
 
         # 스크롤 속도 (옵션 영역 내)
-        spd = ttk.Frame(optf)
+        spd = ttk.Frame(opt_content)
         spd.pack(fill="x", pady=(6, 0))
         ttk.Label(spd, text=self.t("lbl_speed")).pack(side="left")
         self.speed_lbl = ttk.Label(spd, width=4, style="Primary.TLabel")
@@ -2229,13 +2367,24 @@ class App:
         ttk.Button(spd, text=self.t("btn_reset"), style="Secondary.TButton",
                    command=self._reset_speed).pack(side="right")
         self.speed_scale = tk.Scale(
-            optf, from_=0, to=len(SPEED_VALUES) - 1, orient="horizontal",
+            opt_content, from_=0, to=len(SPEED_VALUES) - 1, orient="horizontal",
             showvalue=0, variable=self.speed_idx, command=self._on_speed,
             bg=MC["bg"], fg=MC["text"], troughcolor=MC["surface"],
             activebackground=MC["primary"], highlightthickness=0,
             bd=0, sliderrelief="flat")
         self.speed_scale.pack(fill="x", pady=(2, 0))
         self._update_speed_label()
+
+        # 더보기/숨기기 버튼(옵션 영역 하단 가운데) — 펼치면 옵션 영역이 늘어나고
+        # 아래 파일 목록 영역이 줄어든다.
+        morebar = ttk.Frame(optf)
+        morebar.pack(fill="x", pady=(4, 0))
+        self.more_btn = ttk.Button(morebar, style="Secondary.TButton",
+                                   command=self._toggle_options)
+        self.more_btn.pack(anchor="center")
+        self.more_btn.config(
+            text=self.t("btn_less") if self.opt_expanded.get() else self.t("btn_more"))
+        self.root.after_idle(self._apply_options_expanded)
 
         # 저장 폴더
         dirf = ttk.LabelFrame(self.root, text=self.t("lf_save_folder"),
@@ -2423,8 +2572,12 @@ class App:
         try:
             time.sleep(0.2)
             img = capture_scrolling_region(region, self.set_status, opts)
-            path = save_png(img, self.save_dir.get())
-            self.root.after(0, lambda: self._done(path))
+            if self.opt_split_enabled.get():
+                paths = save_png_split(img, self.save_dir.get(), self._split_height())
+                self.root.after(0, lambda: self._done_split(paths, img))
+            else:
+                path = save_png(img, self.save_dir.get())
+                self.root.after(0, lambda: self._done(path))
         except Exception as e:
             m = str(e)
             self.root.after(0, lambda: self._error(m))
@@ -2461,7 +2614,7 @@ class App:
             ov.close()
             self._busy_overlay = None
 
-    def _done(self, path):
+    def _finish_ui(self):
         self._close_busy()
         self._set_busy(False)
         if getattr(self, "_hidden", True):
@@ -2470,9 +2623,23 @@ class App:
             # 노출 모드: 진행 바를 100%로 채우고 잠시 후 숨김
             self._set_progress(100)
             self.root.after(3000, lambda: self._show_progress(False))
+
+    def _done(self, path):
+        self._finish_ui()
         done = self.t("status_done_fmt", name=os.path.basename(path))
         # 캡처 완료 시 자동으로 클립보드에 복사(옵션)
         if self.opt_auto_copy.get() and copy_image_to_clipboard(path):
+            done = f"{done}  ·  {self.t('copied_status')}"
+        self.status.set(done)
+        self.refresh_list()
+
+    def _done_split(self, paths, img=None):
+        """높이 분할 자르기로 여러 파일이 생성된 경우의 완료 처리.
+        클립보드에는 분할 전 '원본 전체' 이미지를 복사한다."""
+        self._finish_ui()
+        done = self.t("status_done_split_fmt", n=len(paths))
+        if img is not None and self.opt_auto_copy.get() \
+                and copy_ndarray_to_clipboard(img):
             done = f"{done}  ·  {self.t('copied_status')}"
         self.status.set(done)
         self.refresh_list()
@@ -2651,6 +2818,26 @@ def copy_image_to_clipboard(path):
         out = io.BytesIO()
         img.save(out, "BMP")
         data = out.getvalue()[14:]  # BMP 파일 헤더(14바이트) 제거 → DIB
+        out.close()
+        win32clipboard.OpenClipboard()
+        try:
+            win32clipboard.EmptyClipboard()
+            win32clipboard.SetClipboardData(win32clipboard.CF_DIB, data)
+        finally:
+            win32clipboard.CloseClipboard()
+        return True
+    except Exception:
+        return False
+
+
+def copy_ndarray_to_clipboard(img_bgr):
+    """메모리의 이미지(BGR ndarray)를 클립보드에 이미지(CF_DIB)로 복사.
+    분할 저장 시 파일로 나뉜 원본 '전체'를 그대로 복사하는 데 사용."""
+    try:
+        rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
+        out = io.BytesIO()
+        Image.fromarray(rgb).save(out, "BMP")
+        data = out.getvalue()[14:]  # BMP 파일 헤더 제거 → DIB
         out.close()
         win32clipboard.OpenClipboard()
         try:
