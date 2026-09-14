@@ -2460,6 +2460,19 @@ class App:
         self.root.destroy()
 
     # ---------- UI 구성 ----------
+    def _titled_box(self, title, expand=False, pad=(12, 8)):
+        """제목을 박스 '밖(위)'에 두고, 아래에 1px 테두리 박스를 만든 뒤
+        내부 여백 프레임을 돌려준다(자식은 이 프레임에 배치)."""
+        tk.Label(self.root, text=title, bg=MC["bg"], fg=MC["text"],
+                 font=self.f_bold, anchor="w").pack(fill="x", padx=16, pady=(8, 2))
+        box = tk.Frame(self.root, bg=MC["bg"], highlightthickness=1,
+                       highlightbackground="#E5E5E5", highlightcolor="#E5E5E5")
+        box.pack(fill="both" if expand else "x", expand=expand,
+                 padx=14, pady=(0, 4))
+        inner = tk.Frame(box, bg=MC["bg"])
+        inner.pack(fill="both", expand=True, padx=pad[0], pady=pad[1])
+        return inner
+
     def _build_ui(self):
         for w in self.root.winfo_children():
             w.destroy()
@@ -2504,13 +2517,7 @@ class App:
         # prog_frame 은 필요할 때만 pack (여기서는 숨김)
 
         # ===== 옵션 영역 =====
-        optf = tk.LabelFrame(self.root, text=self.t("lf_options"),
-                             bg=MC["bg"], fg=MC["text"], font=self.f_bold,
-                             bd=0, highlightthickness=1,
-                             highlightbackground="#E5E5E5",
-                             highlightcolor="#E5E5E5", labelanchor="nw",
-                             padx=12, pady=8)
-        optf.pack(fill="x", padx=14, pady=(4, 5))
+        optf = self._titled_box(self.t("lf_options"), pad=(12, 8))
 
         # 접었을 때 높이(약 2.5줄)로 잘라 보여주는 클리핑 컨테이너
         self.opt_clip = ttk.Frame(optf)
@@ -2595,7 +2602,8 @@ class App:
         ttk.Label(spd, text=self.t("speed_hint"),
                   style="Muted.TLabel").pack(side="left")
         self.speed_scale = SpeedSlider(
-            opt_content, SPEED_VALUES, self.speed_idx, on_change=self._on_speed)
+            opt_content, SPEED_VALUES, self.speed_idx, on_change=self._on_speed,
+            height=14)
         self.speed_scale.pack(fill="x", pady=(4, 0))
         # 배속 눈금 라벨(가독성) — 슬라이더 아래 균등 배치, 현재 값은 강조
         self.speed_ticks = ttk.Frame(opt_content)
@@ -2619,13 +2627,7 @@ class App:
         self.root.after_idle(self._apply_options_expanded)
 
         # 저장 폴더
-        dirf = tk.LabelFrame(self.root, text=self.t("lf_save_folder"),
-                             bg=MC["bg"], fg=MC["text"], font=self.f_bold,
-                             bd=0, highlightthickness=1,
-                             highlightbackground="#E5E5E5",
-                             highlightcolor="#E5E5E5", labelanchor="nw",
-                             padx=12, pady=8)
-        dirf.pack(fill="x", padx=14, pady=(4, 5))
+        dirf = self._titled_box(self.t("lf_save_folder"), pad=(12, 8))
         ttk.Entry(dirf, textvariable=self.save_dir).pack(
             side="left", fill="x", expand=True)
         RoundButton(dirf, text=self.t("btn_change"), kind="secondary",
@@ -2642,18 +2644,13 @@ class App:
                   wraplength=470).pack(fill="x", padx=14, pady=(0, 4))
 
         # 파일 목록
-        listf = tk.LabelFrame(self.root, text=self.t("lf_captured"),
-                              bg=MC["bg"], fg=MC["text"], font=self.f_bold,
-                              bd=0, highlightthickness=1,
-                              highlightbackground="#E5E5E5",
-                              highlightcolor="#E5E5E5", labelanchor="nw",
-                              padx=10, pady=8)
-        listf.pack(fill="both", expand=True, padx=14, pady=(0, 6))
+        listf = self._titled_box(self.t("lf_captured"), expand=True, pad=(10, 8))
         head = ttk.Frame(listf)
         head.pack(fill="x")
+        # 새로고침: 아래 열기/복사 버튼과 오른쪽 끝이 맞도록 스크롤바 폭만큼 띄움
         RoundButton(head, text=self.t("btn_refresh"), kind="secondary",
                     min_width=52, command=self.refresh_list).pack(
-                        side="right", padx=(0, 10))
+                        side="right", padx=(0, 8))
 
         canvas = tk.Canvas(listf, borderwidth=0, highlightthickness=0,
                            bg=MC["bg"], height=345)   # 약 4개 항목이 보이는 높이

@@ -69,9 +69,10 @@ auto-capture/
 ## 릴리즈 정보
 
 - 최신 빌드 및 전체 이력은 [`release/RELEASES.md`](release/RELEASES.md) 참고.
-- 📥 **다운로드**: [최신 릴리스(v1.4.16)](https://github.com/zeta1113/auto-scroll-capture/releases/latest) 에서 `ScrollCapture_Setup_v1.4.16.exe`
+- 📥 **다운로드**: [최신 릴리스(v1.4.17)](https://github.com/zeta1113/auto-scroll-capture/releases/latest) 에서 `ScrollCapture_Setup_v1.4.17.exe`
 - 🔔 자동 업데이트: `GITHUB_REPO = "zeta1113/auto-scroll-capture"` 설정됨 — 새 릴리스가 올라오면 앱이 자동 감지해 알림
-- 현재 최신: **v1.4.16** — `release/ScrollCapture_Setup_v1.4.16.exe` (정식 설치 파일, 코드 서명됨)
+- 현재 최신: **v1.4.17** — `release/ScrollCapture_Setup_v1.4.17.exe` (정식 설치 파일, 코드 서명됨)
+  - v1.4.17(UI): 영역 제목을 박스 밖(위)으로 분리 · 새로고침 버튼을 열기 버튼과 오른쪽 정렬
   - v1.4.16(UI): 캡처 버튼을 1px 라운드 테두리+배경 채움+아이콘 중앙 정렬로 · 스크롤 속도 세그먼트 슬라이더(핸들=전체폭÷단계, 가운데 선 없음) · 파일명 폭에 맞춰 동적 말줄임(창 넓히면 전체 표시) · 박스 테두리 1px
   - v1.4.15: 텍스트 버튼 라운드화 · 옵션 기본값 복원 · 옵션 접힘 2줄 · 스크롤 캡처 중 마우스 포인터 고정 · 설치 시 이전 앱 자동 종료
   - v1.4.15(UI/UX): 모든 텍스트 버튼을 둥근 모서리로 교체(Canvas 커스텀 버튼) · 옵션 [기본값 복원] 버튼(속도 초기화 버튼은 제거) · 스크롤 속도 눈금 표시 + 슬라이더 개편 · 옵션 접힘 2줄 · 캡처 아이콘 라운드/얇은 테두리 · 박스 테두리 얇게 · 파일명 말줄임(.png 유지) · 목록 버튼 폭 통일 · 설치 시 이전 앱 자동 종료 · **스크롤 캡처 중 마우스 포인터 고정**
