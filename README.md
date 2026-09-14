@@ -69,9 +69,10 @@ auto-capture/
 ## 릴리즈 정보
 
 - 최신 빌드 및 전체 이력은 [`release/RELEASES.md`](release/RELEASES.md) 참고.
-- 📥 **다운로드**: [최신 릴리스(v1.4.13)](https://github.com/zeta1113/auto-scroll-capture/releases/latest) 에서 `ScrollCapture_Setup_v1.4.13.exe`
+- 📥 **다운로드**: [최신 릴리스(v1.4.14)](https://github.com/zeta1113/auto-scroll-capture/releases/latest) 에서 `ScrollCapture_Setup_v1.4.14.exe`
 - 🔔 자동 업데이트: `GITHUB_REPO = "zeta1113/auto-scroll-capture"` 설정됨 — 새 릴리스가 올라오면 앱이 자동 감지해 알림
-- 현재 최신: **v1.4.13** — `release/ScrollCapture_Setup_v1.4.13.exe` (정식 설치 파일, 코드 서명됨)
+- 현재 최신: **v1.4.14** — `release/ScrollCapture_Setup_v1.4.14.exe` (정식 설치 파일, 코드 서명됨)
+  - v1.4.14(버그 수정): 단축키 매핑 창이 열려 있는 동안 전역 단축키를 일시 중지 — 매핑 중 입력한 조합(예: Alt+Shift+1)이 캡처로 발동돼 창이 멈추던 문제 해결
   - v1.4.13: **높이 분할 자르기**(지정 높이마다 여러 PNG로 분할 저장, 클립보드엔 원본 전체 복사) · **옵션 영역 더보기/숨기기**(접으면 3줄) · 전역 단축키 기본값을 **Alt+Shift+1~7**로 변경 · 버튼/모드 순서 재배열
   - v1.4.12(UI 개선): 요소 간격 축소·기본 버튼 크기 축소, 옵션 2열 '항상 위에 위치'를 맨 위로, 파일 목록 3.5개 표시, 자동 업데이트 활성화
   - v1.4.12: **Clean Material UI 스킨** 적용 — 오션 블루(#03A9F4) 포인트, 흰 배경, 머티리얼 체크박스(파란 채움+흰 체크), Primary/Secondary 버튼, 얇은 커스텀 스크롤바, 리스트 hover(연블루), Pretendard/Noto Sans KR 폰트

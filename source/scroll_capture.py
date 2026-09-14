@@ -2219,13 +2219,23 @@ class App:
             pass
 
     def _open_hotkeys(self):
-        HotkeyDialog(self.root, self.t, self.hotkeys, self._on_hotkeys_saved)
+        # 편집 중에는 전역 단축키를 잠시 중지(입력하려는 조합이 캡처로 발동되는 것 방지)
+        try:
+            self.hotkeys_mgr.stop()
+        except Exception:
+            pass
+        try:
+            dlg = HotkeyDialog(self.root, self.t, self.hotkeys,
+                               self._on_hotkeys_saved)
+            self.root.wait_window(dlg.top)      # 창이 닫힐 때까지 대기
+        finally:
+            self._apply_hotkeys()               # 닫히면 전역 단축키 다시 등록
 
     def _on_hotkeys_saved(self, out):
         self.cfg["hotkeys"] = out
         save_cfg(self.cfg)
         self.hotkeys = self._load_hotkeys()
-        self._apply_hotkeys()
+        # 재등록은 _open_hotkeys 의 wait_window 종료 후 일괄 처리
 
     def _on_close(self):
         try:
