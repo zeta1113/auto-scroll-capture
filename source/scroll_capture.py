@@ -34,6 +34,7 @@ import win32clipboard
 
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
+import tkinter.font as tkfont
 from PIL import Image, ImageTk
 
 try:
@@ -257,6 +258,9 @@ TR = {
         "speed_hint": "빠를수록 정확도가 떨어질 수 있어요",
         "lbl_speed": "스크롤 속도",
         "btn_reset": "초기화",
+        "btn_reset_all": "기본값 복원",
+        "confirm_reset": "모든 옵션(체크박스·스크롤 속도·단축키·언어)을 기본값으로 되돌릴까요?",
+        "reset_done": "기본값으로 초기화했습니다.",
         "lbl_language": "언어",
         "lf_save_folder": "캡처 저장 폴더",
         "btn_change": "변경",
@@ -340,6 +344,9 @@ TR = {
         "speed_hint": "Faster may reduce accuracy",
         "lbl_speed": "Scroll speed",
         "btn_reset": "Reset",
+        "btn_reset_all": "Restore Defaults",
+        "confirm_reset": "Reset all options (checkboxes, speed, hotkeys, language) to defaults?",
+        "reset_done": "Options reset to defaults.",
         "lbl_language": "Language",
         "lf_save_folder": "Save folder",
         "btn_change": "Change",
@@ -423,6 +430,9 @@ TR = {
         "speed_hint": "速いほど精度が下がる場合があります",
         "lbl_speed": "スクロール速度",
         "btn_reset": "リセット",
+        "btn_reset_all": "既定に戻す",
+        "confirm_reset": "すべてのオプション(チェックボックス・スクロール速度・ショートカット・言語)を既定に戻しますか？",
+        "reset_done": "既定に戻しました。",
         "lbl_language": "言語",
         "lf_save_folder": "保存フォルダ",
         "btn_change": "変更",
@@ -506,6 +516,9 @@ TR = {
         "speed_hint": "速度越快，精度可能越低",
         "lbl_speed": "滚动速度",
         "btn_reset": "重置",
+        "btn_reset_all": "恢复默认",
+        "confirm_reset": "将所有选项(复选框·滚动速度·快捷键·语言)恢复为默认值吗？",
+        "reset_done": "已恢复为默认设置。",
         "lbl_language": "语言",
         "lf_save_folder": "保存文件夹",
         "btn_change": "更改",
@@ -999,14 +1012,12 @@ def capture_scrolling_region(region, status_cb, opts=None):
         raise RuntimeError(S.get("err_small_region", "선택한 영역이 너무 작습니다."))
     cx, cy = x + w // 2, y + h // 2
 
-    # 마우스 숨기기: 캡처 직전 커서를 콘텐츠 밖(영역 위쪽/좌상단)으로 이동시킬 위치
+    # 캡처 중 마우스 포인터를 옮기지 않는다(사용자 요청): park(커서 이동) 사용 안 함.
     park = None
-    if hide_mouse:
-        park = (x + 2, y - 5) if y >= 5 else (x + 2, y + 2)
 
-    # 마우스 숨기기 시: 커서를 안 움직이는 방식(send/key)을 우선 → 커서 깜빡임 방지.
-    # (매 캡처마다 재설정하므로 별도 복원 불필요)
-    METHODS[:] = ["send", "key", "wheel"] if hide_mouse else ["wheel", "send", "key"]
+    # 커서를 움직이지 않는 방식(send/key: 대상 창에 직접 스크롤 메시지)을 우선하고,
+    # 이 방식들이 안 먹히는 창에서만 마지막으로 wheel(커서 위치 필요)을 쓴다.
+    METHODS[:] = ["send", "key", "wheel"]
 
     child = win32gui.WindowFromPoint((cx, cy))
     hwnd = ctypes.windll.user32.GetAncestor(child, GA_ROOT)
@@ -1715,6 +1726,93 @@ def _key_display_name(keysym):
     return keysym.capitalize() if keysym else None
 
 
+def _round_rect_points(x1, y1, x2, y2, r):
+    return [x1 + r, y1, x2 - r, y1, x2, y1, x2, y1 + r, x2, y2 - r, x2, y2,
+            x2 - r, y2, x1 + r, y2, x1, y2, x1, y2 - r, x1, y1 + r, x1, y1]
+
+
+class RoundButton(tk.Canvas):
+    """Canvas 로 그린 모서리 둥근 얇은 버튼(ttk 사각 버튼 대체).
+    kind: 'secondary'(흰 배경+연한 테두리) 또는 'primary'(파란 배경)."""
+
+    def __init__(self, master, text="", command=None, kind="secondary",
+                 font=None, padx=12, pady=5, radius=8, min_width=0):
+        self.kind = kind
+        self.command = command
+        self.radius = radius
+        self.padx = padx
+        self.pady = pady
+        self.min_width = min_width
+        self._text = text
+        self._enabled = True
+        self._hover = False
+        self.font = font or (pick_font_family(), -12)
+        super().__init__(master, highlightthickness=0, bd=0, bg=MC["bg"],
+                         takefocus=0, cursor="hand2")
+        self.bind("<Enter>", self._on_enter)
+        self.bind("<Leave>", self._on_leave)
+        self.bind("<ButtonPress-1>", self._on_press)
+        self.bind("<ButtonRelease-1>", self._on_release)
+        self._draw()
+
+    def _size(self):
+        f = tkfont.Font(font=self.font)
+        w = max(self.min_width, f.measure(self._text) + self.padx * 2)
+        h = f.metrics("linespace") + self.pady * 2
+        return int(w), int(h)
+
+    def _draw(self, press=False):
+        self.delete("all")
+        w, h = self._size()
+        self.configure(width=w, height=h)
+        C = MC
+        if not self._enabled:
+            fill, fg, bd = C["surface"], C["muted"], C["border"]
+        elif self.kind == "primary":
+            fill = C["primary_hover"] if (self._hover or press) else C["primary"]
+            fg, bd = "white", fill
+        else:
+            fill = C["surface"] if (self._hover or press) else C["white"]
+            fg = C["text"]
+            bd = C["primary"] if self._hover else C["border"]
+        self.create_polygon(_round_rect_points(1, 1, w - 1, h - 1, self.radius),
+                            smooth=True, splinesteps=24, fill=fill,
+                            outline=bd, width=1)
+        self.create_text(w // 2, h // 2 + 1, text=self._text, fill=fg,
+                         font=self.font)
+
+    def _on_enter(self, _=None):
+        if self._enabled:
+            self._hover = True
+            self._draw()
+
+    def _on_leave(self, _=None):
+        self._hover = False
+        self._draw()
+
+    def _on_press(self, _=None):
+        if self._enabled:
+            self._draw(press=True)
+
+    def _on_release(self, e=None):
+        if not self._enabled:
+            return
+        self._draw()
+        # 커서가 버튼 위에서 떼졌을 때만 실행
+        if 0 <= e.x < self.winfo_width() and 0 <= e.y < self.winfo_height():
+            if self.command:
+                self.command()
+
+    def set_text(self, text):
+        self._text = text
+        self._draw()
+
+    def set_enabled(self, enabled):
+        self._enabled = bool(enabled)
+        self.configure(cursor="hand2" if self._enabled else "arrow")
+        self._draw()
+
+
 class HotkeyDialog:
     """캡처 7종의 단축키를 편집하는 모달 창. 저장 시 on_save(dict) 호출."""
 
@@ -1758,10 +1856,10 @@ class HotkeyDialog:
         btns = ttk.Frame(frm)
         btns.grid(row=len(HOTKEY_MODES) + 1, column=0, columnspan=2,
                   sticky="e", pady=(12, 0))
-        ttk.Button(btns, text=t("hk_close"), style="Secondary.TButton",
-                   command=self.top.destroy).pack(side="right", padx=(8, 0))
-        ttk.Button(btns, text=t("hk_save"), style="Primary.TButton",
-                   command=self._save).pack(side="right")
+        RoundButton(btns, text=t("hk_close"), kind="secondary",
+                    command=self.top.destroy).pack(side="right", padx=(8, 0))
+        RoundButton(btns, text=t("hk_save"), kind="primary",
+                    command=self._save).pack(side="right")
 
         self.top.bind("<Escape>", lambda e: None)  # Esc는 입력창에서 '해제'로 사용
         self.top.update_idletasks()
@@ -1996,8 +2094,9 @@ class App:
         st.configure("Primary.TLabel", background=C["bg"],
                      foreground=C["primary"], font=self.f_bold)
         # 패널(LabelFrame): 얇은 테두리 + 굵은 제목
-        st.configure("TLabelframe", background=C["bg"], bordercolor=C["border"],
-                     relief="solid", borderwidth=1)
+        st.configure("TLabelframe", background=C["bg"], bordercolor="#EDEDED",
+                     relief="solid", borderwidth=1, lightcolor="#EDEDED",
+                     darkcolor="#EDEDED")
         st.configure("TLabelframe.Label", background=C["bg"],
                      foreground=C["text"], font=self.f_bold)
         # 체크박스
@@ -2040,15 +2139,18 @@ class App:
         st.map("Path.TButton",
                background=[("active", C["surface"]), ("pressed", C["surface"])],
                bordercolor=[("active", C["primary"])])
-        # 캡처 아이콘 버튼(카드 배경색으로 꽉 채움, hover 시 테두리 강조)
-        st.configure("Icon.TButton", background=C["card"], borderwidth=1,
-                     bordercolor=C["border"], relief="solid", padding=0,
-                     focuscolor=C["card"])
+        # 캡처 아이콘 버튼(얇은 테두리 + 라운드 카드 이미지)
+        st.configure("Icon.TButton", background=C["bg"], borderwidth=1,
+                     bordercolor="#E5E5E5", relief="solid", padding=3,
+                     lightcolor="#E5E5E5", darkcolor="#E5E5E5",
+                     focuscolor=C["bg"])
         st.map("Icon.TButton",
-               background=[("active", C["card"]),
-                           ("pressed", C["card"]),
-                           ("disabled", C["surface"])],
-               bordercolor=[("active", C["primary"])])
+               background=[("active", C["bg"]),
+                           ("pressed", C["bg"]),
+                           ("disabled", C["bg"])],
+               bordercolor=[("active", C["primary"]), ("pressed", C["primary"])],
+               lightcolor=[("active", C["primary"]), ("pressed", C["primary"])],
+               darkcolor=[("active", C["primary"]), ("pressed", C["primary"])])
         # 얇은 스크롤바
         st.configure("Thin.Vertical.TScrollbar", troughcolor=C["surface"],
                      background=C["thumb"], bordercolor=C["surface"],
@@ -2062,6 +2164,13 @@ class App:
                      troughcolor=C["surface"], background=C["primary"],
                      bordercolor=C["surface"], lightcolor=C["primary"],
                      darkcolor=C["primary"])
+        # 스크롤 속도 슬라이더(가운데 선 없는 넓은 핸들)
+        st.configure("Speed.Horizontal.TScale", background=C["bg"],
+                     troughcolor=C["surface"], bordercolor=C["surface"],
+                     lightcolor=C["primary"], darkcolor=C["primary"],
+                     sliderlength=30, sliderthickness=18)
+        st.map("Speed.Horizontal.TScale",
+               background=[("active", C["primary_hover"])])
         self.style = st
         self._make_check_images()
 
@@ -2178,7 +2287,7 @@ class App:
             except Exception:
                 pass
             self.opt_clip.pack_propagate(False)
-            self.opt_clip.configure(height=int(row_h * 3) + 4)
+            self.opt_clip.configure(height=int(row_h * 2) + 4)
         try:
             self.more_btn.config(
                 text=self.t("btn_less") if expanded else self.t("btn_more"))
@@ -2255,10 +2364,10 @@ class App:
         self.update_lbl = tk.Label(self.update_bar, bg=MC["list_hover"],
                                    fg=MC["primary_hover"], font=self.f_cap)
         self.update_lbl.pack(side="left", padx=12, pady=5)
-        tk.Button(self.update_bar, text=self.t("btn_download"), relief="flat",
-                  bg=MC["primary"], fg="white", cursor="hand2", bd=0,
-                  activebackground=MC["primary_hover"], activeforeground="white",
-                  command=self._open_update).pack(side="right", padx=10, pady=5)
+        dlbtn = RoundButton(self.update_bar, text=self.t("btn_download"),
+                            kind="primary", command=self._open_update)
+        dlbtn.configure(bg=MC["list_hover"])
+        dlbtn.pack(side="right", padx=10, pady=5)
 
         # 캡처 버튼 7개 (아이콘 + 툴팁). 한 줄로 가로 정렬.
         #  스크롤 3종(디스플레이/윈도우/영역) + 즉시 캡처 4종(전체/디스플레이/윈도우/영역)
@@ -2359,12 +2468,14 @@ class App:
         self.lang_cb.pack(side="left", padx=(6, 0))
         self.lang_cb.bind("<<ComboboxSelected>>", self._on_lang)
         # 단축키 매핑 버튼 (언어 밑)
-        ttk.Button(col2, text=self.t("btn_hotkeys"), style="Secondary.TButton",
-                   command=self._open_hotkeys).pack(anchor="w", pady=(6, 0))
+        RoundButton(col2, text=self.t("btn_hotkeys"), kind="secondary",
+                    command=self._open_hotkeys).pack(anchor="w", pady=(6, 0))
+        # 기본값 복원 버튼 (업데이트 확인 위) — 모든 옵션을 기본값으로
+        RoundButton(col2, text=self.t("btn_reset_all"), kind="secondary",
+                    command=self._reset_all).pack(anchor="w", pady=(4, 0))
         if GITHUB_REPO and updater is not None:
-            ttk.Button(col2, text=self.t("btn_check_update"),
-                       style="Secondary.TButton",
-                       command=self._check_update_manual).pack(anchor="w", pady=(4, 0))
+            RoundButton(col2, text=self.t("btn_check_update"), kind="secondary",
+                        command=self._check_update_manual).pack(anchor="w", pady=(4, 0))
 
         # 스크롤 속도 (옵션 영역 내)
         spd = ttk.Frame(opt_content)
@@ -2374,26 +2485,30 @@ class App:
         self.speed_lbl.pack(side="left", padx=(6, 6))
         ttk.Label(spd, text=self.t("speed_hint"),
                   style="Muted.TLabel").pack(side="left")
-        ttk.Button(spd, text=self.t("btn_reset"), style="Secondary.TButton",
-                   command=self._reset_speed).pack(side="right")
-        self.speed_scale = tk.Scale(
+        self.speed_scale = ttk.Scale(
             opt_content, from_=0, to=len(SPEED_VALUES) - 1, orient="horizontal",
-            showvalue=0, variable=self.speed_idx, command=self._on_speed,
-            bg=MC["bg"], fg=MC["text"], troughcolor=MC["surface"],
-            activebackground=MC["primary"], highlightthickness=0,
-            bd=0, sliderrelief="flat")
-        self.speed_scale.pack(fill="x", pady=(2, 0))
+            command=self._on_speed_scale, style="Speed.Horizontal.TScale")
+        self.speed_scale.set(self.speed_idx.get())
+        self.speed_scale.pack(fill="x", pady=(4, 0))
+        # 배속 눈금 라벨(가독성) — 슬라이더 아래 균등 배치, 현재 값은 강조
+        self.speed_ticks = ttk.Frame(opt_content)
+        self.speed_ticks.pack(fill="x")
+        self._tick_lbls = []
+        for i, v in enumerate(SPEED_VALUES):
+            lb = ttk.Label(self.speed_ticks, text=("%gx" % v),
+                           style="Muted.TLabel", anchor="center")
+            lb.pack(side="left", expand=True, fill="x")
+            self._tick_lbls.append(lb)
         self._update_speed_label()
 
         # 더보기/숨기기 버튼(옵션 영역 하단 가운데) — 펼치면 옵션 영역이 늘어나고
         # 아래 파일 목록 영역이 줄어든다.
         morebar = ttk.Frame(optf)
         morebar.pack(fill="x", pady=(4, 0))
-        self.more_btn = ttk.Button(morebar, style="Secondary.TButton",
-                                   command=self._toggle_options)
-        self.more_btn.pack(anchor="center")
-        self.more_btn.config(
+        self.more_btn = RoundButton(
+            morebar, kind="secondary", command=self._toggle_options,
             text=self.t("btn_less") if self.opt_expanded.get() else self.t("btn_more"))
+        self.more_btn.pack(anchor="center")
         self.root.after_idle(self._apply_options_expanded)
 
         # 저장 폴더
@@ -2402,10 +2517,12 @@ class App:
         dirf.pack(fill="x", padx=14, pady=(4, 5))
         ttk.Entry(dirf, textvariable=self.save_dir).pack(
             side="left", fill="x", expand=True)
-        ttk.Button(dirf, text=self.t("btn_change"), style="Path.TButton",
-                   width=4, command=self.change_dir).pack(side="left", padx=(8, 0))
-        ttk.Button(dirf, text=self.t("btn_open"), style="Path.TButton",
-                   width=4, command=self.open_dir).pack(side="left", padx=(4, 0))
+        RoundButton(dirf, text=self.t("btn_change"), kind="secondary",
+                    min_width=52, command=self.change_dir).pack(
+                        side="left", padx=(8, 0))
+        RoundButton(dirf, text=self.t("btn_open"), kind="secondary",
+                    min_width=52, command=self.open_dir).pack(
+                        side="left", padx=(4, 0))
 
         # 상태
         if not self.status.get():
@@ -2419,8 +2536,9 @@ class App:
         listf.pack(fill="both", expand=True, padx=14, pady=(0, 6))
         head = ttk.Frame(listf)
         head.pack(fill="x")
-        ttk.Button(head, text=self.t("btn_refresh"), style="Path.TButton",
-                   width=6, command=self.refresh_list).pack(side="right")
+        RoundButton(head, text=self.t("btn_refresh"), kind="secondary",
+                    min_width=52, command=self.refresh_list).pack(
+                        side="right", padx=(0, 10))
 
         canvas = tk.Canvas(listf, borderwidth=0, highlightthickness=0,
                            bg=MC["bg"], height=345)   # 약 4개 항목이 보이는 높이
@@ -2449,10 +2567,26 @@ class App:
 
     def _update_speed_label(self):
         v = self._speed()
-        txt = ("%gx" % v)
-        self.speed_lbl.config(text=txt)
+        self.speed_lbl.config(text=("%gx" % v))
+        # 현재 배속 눈금만 강조(파란색), 나머지는 흐린 회색
+        idx = self.speed_idx.get()
+        for i, lb in enumerate(getattr(self, "_tick_lbls", [])):
+            try:
+                lb.config(style="Primary.TLabel" if i == idx else "Muted.TLabel")
+            except Exception:
+                pass
 
     def _on_speed(self, _=None):
+        self._update_speed_label()
+        self._save_cfg()
+
+    def _on_speed_scale(self, v):
+        """ttk.Scale(연속값)을 정수 인덱스로 스냅."""
+        i = max(0, min(len(SPEED_VALUES) - 1, int(round(float(v)))))
+        if i != self.speed_idx.get():
+            self.speed_idx.set(i)
+        if abs(float(v) - i) > 1e-6:
+            self.speed_scale.set(i)          # 눈금에 딱 맞춤
         self._update_speed_label()
         self._save_cfg()
 
@@ -2460,6 +2594,32 @@ class App:
         self.speed_idx.set(SPEED_DEFAULT_IDX)
         self._update_speed_label()
         self._save_cfg()
+
+    def _reset_all(self):
+        """옵션의 모든 값(체크박스·스크롤 속도·단축키·언어)을 기본값으로 복원."""
+        if not messagebox.askyesno(self.t("info_title"), self.t("confirm_reset")):
+            return
+        d = DEFAULT_CFG
+        self.opt_scroll_top.set(d["scroll_top"])
+        self.opt_multi.set(d["multi_monitor"])
+        self.opt_hide.set(d["hide_app"])
+        self.opt_sticky.set(d["sticky"])
+        self.opt_hide_mouse.set(d["hide_mouse"])
+        self.opt_auto_copy.set(d["auto_copy"])
+        self.opt_split_enabled.set(d["split_enabled"])
+        self.split_height_var.set(str(d["split_height"]))
+        self.opt_on_top.set(d["on_top"])
+        self.opt_expanded.set(d["options_expanded"])
+        self.speed_idx.set(SPEED_DEFAULT_IDX)
+        self.cfg["lang"] = d["lang"]
+        self.cfg["hotkeys"] = {}                 # 단축키도 기본값으로
+        self.hotkeys = self._load_hotkeys()
+        self._save_cfg()
+        self._apply_hotkeys()
+        self.root.attributes("-topmost", self.opt_on_top.get())
+        self._build_ui()                         # 언어 등 즉시 반영
+        self.refresh_list()
+        self.status.set(self.t("reset_done"))
 
     def _on_lang(self, _=None):
         name = self.lang_cb.get()
@@ -2702,6 +2862,17 @@ class App:
             thumb = tk.Label(inner, text="[img]", width=12, bg=C["white"],
                              fg=C["muted"])
         thumb.pack(side="left")
+        # 열기/복사 버튼(오른쪽 먼저 배치해 폭을 확보 → 파일명이 침범 못 함)
+        btns = tk.Frame(inner, bg=C["white"])
+        btns.pack(side="right")
+        obtn = RoundButton(btns, text=self.t("btn_open_item"), kind="secondary",
+                           min_width=52, command=lambda p=path: os.startfile(p))
+        obtn.pack(anchor="e")
+        copy_btn = RoundButton(btns, text=self.t("btn_copy"), kind="secondary",
+                               min_width=52)
+        copy_btn.command = (lambda p=path, b=copy_btn: self._copy_image(p, b))
+        copy_btn.pack(anchor="e", pady=(4, 0))
+        # 파일 정보(남은 공간) — 파일명은 .png 앞에서 말줄임
         try:
             with Image.open(path) as im2:
                 w, h = im2.size
@@ -2711,8 +2882,8 @@ class App:
             "%Y-%m-%d %H:%M:%S")
         info = tk.Frame(inner, bg=C["white"])
         info.pack(side="left", fill="x", expand=True, padx=10)
-        l1 = tk.Label(info, text=os.path.basename(path), bg=C["white"],
-                      fg=C["text"], font=self.f_bold, anchor="w")
+        l1 = tk.Label(info, text=self._ellipsize_name(os.path.basename(path)),
+                      bg=C["white"], fg=C["text"], font=self.f_bold, anchor="w")
         l1.pack(anchor="w")
         l2 = tk.Label(info, text=f"{w} x {h} px", bg=C["white"],
                       fg=C["muted"], font=self.f_cap, anchor="w")
@@ -2721,21 +2892,11 @@ class App:
                       font=self.f_cap, anchor="w")
         l3.pack(anchor="w")
 
-        # 열기 / 복사 버튼(세로 배치)
-        btns = tk.Frame(inner, bg=C["white"])
-        btns.pack(side="right")
-        ttk.Button(btns, text=self.t("btn_open_item"), style="Path.TButton",
-                   width=5, command=lambda p=path: os.startfile(p)).pack(anchor="e")
-        copy_btn = ttk.Button(btns, text=self.t("btn_copy"),
-                              style="Path.TButton", width=5)
-        copy_btn.config(command=lambda p=path, b=copy_btn: self._copy_image(p, b))
-        copy_btn.pack(anchor="e", pady=(4, 0))
-
         # 하단 구분선
         tk.Frame(self.list_inner, bg=C["border"], height=1).pack(fill="x")
 
-        # Hover(연블루) — 항목의 tk 위젯들 배경 전환
-        hover_widgets = [row, inner, thumb, info, l1, l2, l3, btns]
+        # Hover(연블루) — 항목의 tk 위젯 배경 전환(라운드 버튼 여백도 함께)
+        hover_widgets = [row, inner, thumb, info, l1, l2, l3, btns, obtn, copy_btn]
 
         def set_bg(color):
             for wd in hover_widgets:
@@ -2749,17 +2910,28 @@ class App:
             wd.bind("<Leave>", lambda e: set_bg(C["white"]))
             wd.bind("<Double-Button-1>", lambda e, p=path: os.startfile(p))
 
+    @staticmethod
+    def _ellipsize_name(name, maxlen=22):
+        """긴 파일명을 확장자(.png)는 남기고 그 앞에서 …로 줄임."""
+        if len(name) <= maxlen:
+            return name
+        root, ext = os.path.splitext(name)
+        keep = maxlen - len(ext) - 1
+        if keep < 4:
+            return name
+        return root[:keep] + "…" + ext
+
     def _copy_image(self, path, btn):
         ok = copy_image_to_clipboard(path)
         if ok:
-            btn.config(text=self.t("copied_mark"))
+            btn.set_text(self.t("copied_mark"))
             self.root.after(3000, lambda: self._restore_copy_btn(btn))
         else:
             messagebox.showwarning(self.t("info_title"), self.t("copy_fail"))
 
     def _restore_copy_btn(self, btn):
         try:
-            btn.config(text=self.t("btn_copy"))
+            btn.set_text(self.t("btn_copy"))
         except Exception:
             pass
 

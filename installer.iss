@@ -30,6 +30,9 @@ SolidCompression=yes
 ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequired=admin
 WizardStyle=modern
+; 실행 중인 이전 버전을 설치 프로그램이 감지하도록(정중히 닫기 시도)
+CloseApplications=yes
+RestartApplications=no
 
 [Languages]
 Name: "korean"; MessagesFile: "compiler:Languages\Korean.isl"
@@ -48,3 +51,30 @@ Name: "{autodesktop}\{#MyAppTitleKo}"; Filename: "{app}\ScrollCapture.exe"; Task
 
 [Run]
 Filename: "{app}\ScrollCapture.exe"; Description: "실행"; Flags: nowait postinstall skipifsilent
+
+[Code]
+procedure KillRunningApp;
+var
+  ResultCode: Integer;
+begin
+  { 실행 중인 이전 버전을 강제 종료(파일 잠금 해제) }
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM ScrollCapture.exe',
+       '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Sleep(600);
+end;
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+begin
+  KillRunningApp;   { 파일 복사 직전에 종료 }
+  Result := '';
+end;
+
+function InitializeUninstall(): Boolean;
+var
+  ResultCode: Integer;
+begin
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM ScrollCapture.exe',
+       '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Sleep(400);
+  Result := True;
+end;
