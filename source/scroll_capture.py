@@ -1813,6 +1813,112 @@ class RoundButton(tk.Canvas):
         self._draw()
 
 
+class SpeedSlider(tk.Canvas):
+    """세그먼트형 커스텀 슬라이더. 핸들 가로폭 = 전체폭 / 단계수(눈금과 정렬).
+    가운데 grip 선이 없고, 창 가로에 따라 폭이 자동 조정된다."""
+
+    def __init__(self, master, values, idx_var, on_change=None, height=26):
+        self.values = values
+        self.n = max(1, len(values))
+        self.idx_var = idx_var
+        self.on_change = on_change
+        super().__init__(master, height=height, highlightthickness=0, bd=0,
+                         bg=MC["bg"], cursor="hand2")
+        self.bind("<Configure>", lambda e: self._draw())
+        self.bind("<Button-1>", self._on_click)
+        self.bind("<B1-Motion>", self._on_click)
+        self._draw()
+
+    def _on_click(self, e):
+        sw = max(1.0, self.winfo_width() / self.n)
+        i = max(0, min(self.n - 1, int(e.x // sw)))
+        changed = (i != self.idx_var.get())
+        self.idx_var.set(i)
+        self._draw()
+        if changed and self.on_change:
+            self.on_change()
+
+    def refresh(self):
+        self._draw()
+
+    def _draw(self):
+        self.delete("all")
+        w = self.winfo_width()
+        h = int(self.cget("height"))
+        if w <= 1:
+            return
+        C = MC
+        # 트랙(얇은 라운드 바)
+        ty0, ty1 = h * 0.40, h * 0.60
+        self.create_polygon(
+            _round_rect_points(1, ty0, w - 1, ty1, (ty1 - ty0) / 2),
+            smooth=True, splinesteps=12, fill=C["surface"], outline=C["surface"])
+        # 핸들(한 구간 폭 = 전체/단계수)
+        sw = w / self.n
+        i = max(0, min(self.n - 1, self.idx_var.get()))
+        x0, x1 = i * sw + 2, (i + 1) * sw - 2
+        self.create_polygon(
+            _round_rect_points(x0, 2, x1, h - 2, 8),
+            smooth=True, splinesteps=16, fill=C["primary"], outline=C["primary"])
+
+
+class IconRoundButton(tk.Canvas):
+    """캡처 아이콘 버튼: 카드색 배경을 꽉 채운 둥근 사각(1px 테두리) + 중앙 아이콘."""
+
+    def __init__(self, master, image, command=None, radius=12, height=60):
+        self.image = image
+        self.command = command
+        self.radius = radius
+        self._enabled = True
+        self._hover = False
+        super().__init__(master, height=height, highlightthickness=0, bd=0,
+                         bg=MC["bg"], cursor="hand2")
+        self.bind("<Configure>", lambda e: self._draw())
+        self.bind("<Enter>", self._on_enter)
+        self.bind("<Leave>", self._on_leave)
+        self.bind("<ButtonPress-1>", self._on_press)
+        self.bind("<ButtonRelease-1>", self._on_release)
+
+    def _draw(self, press=False):
+        self.delete("all")
+        w = self.winfo_width()
+        h = self.winfo_height()
+        if w <= 1:
+            return
+        C = MC
+        bd = C["primary"] if (self._hover and self._enabled) else "#E5E5E5"
+        fill = C["card"] if self._enabled else C["surface"]
+        self.create_polygon(_round_rect_points(1, 1, w - 1, h - 1, self.radius),
+                            smooth=True, splinesteps=24, fill=fill,
+                            outline=bd, width=1)
+        self.create_image(w // 2, h // 2, image=self.image)
+
+    def _on_enter(self, _=None):
+        self._hover = True
+        self._draw()
+
+    def _on_leave(self, _=None):
+        self._hover = False
+        self._draw()
+
+    def _on_press(self, _=None):
+        if self._enabled:
+            self._draw(press=True)
+
+    def _on_release(self, e=None):
+        if not self._enabled:
+            return
+        self._draw()
+        if 0 <= e.x < self.winfo_width() and 0 <= e.y < self.winfo_height():
+            if self.command:
+                self.command()
+
+    def set_enabled(self, enabled):
+        self._enabled = bool(enabled)
+        self.configure(cursor="hand2" if self._enabled else "arrow")
+        self._draw()
+
+
 class HotkeyDialog:
     """캡처 7종의 단축키를 편집하는 모달 창. 저장 시 on_save(dict) 호출."""
 
@@ -2374,13 +2480,12 @@ class App:
         top = ttk.Frame(self.root, padding=(12, 10, 12, 4))
         top.pack(fill="x")
         self.btn_bar = top
-        self._icon_imgs = make_capture_icons(56)
+        self._icon_imgs = make_capture_icons(46)
         modes = CAPTURE_ICON_MODES
         self.cap_buttons = []
         for i, m in enumerate(modes):
-            b = ttk.Button(top, image=self._icon_imgs[m], padding=(1, 2),
-                           style="Icon.TButton",
-                           command=lambda mm=m: self.start_capture(mm))
+            b = IconRoundButton(top, image=self._icon_imgs[m], height=58,
+                                command=lambda mm=m: self.start_capture(mm))
             b.grid(row=0, column=i, sticky="nsew", padx=2)
             top.columnconfigure(i, weight=1, uniform="cap")
             Tooltip(b, self.t(f"tip_{m}_t"), self.t(f"tip_{m}_h"),
@@ -2399,8 +2504,12 @@ class App:
         # prog_frame 은 필요할 때만 pack (여기서는 숨김)
 
         # ===== 옵션 영역 =====
-        optf = ttk.LabelFrame(self.root, text=self.t("lf_options"),
-                              padding=(12, 6, 12, 8))
+        optf = tk.LabelFrame(self.root, text=self.t("lf_options"),
+                             bg=MC["bg"], fg=MC["text"], font=self.f_bold,
+                             bd=0, highlightthickness=1,
+                             highlightbackground="#E5E5E5",
+                             highlightcolor="#E5E5E5", labelanchor="nw",
+                             padx=12, pady=8)
         optf.pack(fill="x", padx=14, pady=(4, 5))
 
         # 접었을 때 높이(약 2.5줄)로 잘라 보여주는 클리핑 컨테이너
@@ -2485,10 +2594,8 @@ class App:
         self.speed_lbl.pack(side="left", padx=(6, 6))
         ttk.Label(spd, text=self.t("speed_hint"),
                   style="Muted.TLabel").pack(side="left")
-        self.speed_scale = ttk.Scale(
-            opt_content, from_=0, to=len(SPEED_VALUES) - 1, orient="horizontal",
-            command=self._on_speed_scale, style="Speed.Horizontal.TScale")
-        self.speed_scale.set(self.speed_idx.get())
+        self.speed_scale = SpeedSlider(
+            opt_content, SPEED_VALUES, self.speed_idx, on_change=self._on_speed)
         self.speed_scale.pack(fill="x", pady=(4, 0))
         # 배속 눈금 라벨(가독성) — 슬라이더 아래 균등 배치, 현재 값은 강조
         self.speed_ticks = ttk.Frame(opt_content)
@@ -2512,8 +2619,12 @@ class App:
         self.root.after_idle(self._apply_options_expanded)
 
         # 저장 폴더
-        dirf = ttk.LabelFrame(self.root, text=self.t("lf_save_folder"),
-                              padding=(12, 6, 12, 8))
+        dirf = tk.LabelFrame(self.root, text=self.t("lf_save_folder"),
+                             bg=MC["bg"], fg=MC["text"], font=self.f_bold,
+                             bd=0, highlightthickness=1,
+                             highlightbackground="#E5E5E5",
+                             highlightcolor="#E5E5E5", labelanchor="nw",
+                             padx=12, pady=8)
         dirf.pack(fill="x", padx=14, pady=(4, 5))
         ttk.Entry(dirf, textvariable=self.save_dir).pack(
             side="left", fill="x", expand=True)
@@ -2531,8 +2642,12 @@ class App:
                   wraplength=470).pack(fill="x", padx=14, pady=(0, 4))
 
         # 파일 목록
-        listf = ttk.LabelFrame(self.root, text=self.t("lf_captured"),
-                               padding=(10, 6, 10, 8))
+        listf = tk.LabelFrame(self.root, text=self.t("lf_captured"),
+                              bg=MC["bg"], fg=MC["text"], font=self.f_bold,
+                              bd=0, highlightthickness=1,
+                              highlightbackground="#E5E5E5",
+                              highlightcolor="#E5E5E5", labelanchor="nw",
+                              padx=10, pady=8)
         listf.pack(fill="both", expand=True, padx=14, pady=(0, 6))
         head = ttk.Frame(listf)
         head.pack(fill="x")
@@ -2650,10 +2765,9 @@ class App:
     # ---------- 캡처 ----------
     def _set_busy(self, busy):
         self.busy = busy
-        st = "disabled" if busy else "normal"
         for b in self.cap_buttons:
             try:
-                b.config(state=st)
+                b.set_enabled(not busy)
             except Exception:
                 pass
 
@@ -2882,9 +2996,12 @@ class App:
             "%Y-%m-%d %H:%M:%S")
         info = tk.Frame(inner, bg=C["white"])
         info.pack(side="left", fill="x", expand=True, padx=10)
-        l1 = tk.Label(info, text=self._ellipsize_name(os.path.basename(path)),
-                      bg=C["white"], fg=C["text"], font=self.f_bold, anchor="w")
-        l1.pack(anchor="w")
+        fullname = os.path.basename(path)
+        l1 = tk.Label(info, text=fullname, bg=C["white"], fg=C["text"],
+                      font=self.f_bold, anchor="w")
+        l1.pack(anchor="w", fill="x")
+        l1.bind("<Configure>",
+                lambda e, lb=l1, nm=fullname: self._fit_name(lb, nm))
         l2 = tk.Label(info, text=f"{w} x {h} px", bg=C["white"],
                       fg=C["muted"], font=self.f_cap, anchor="w")
         l2.pack(anchor="w")
@@ -2910,16 +3027,34 @@ class App:
             wd.bind("<Leave>", lambda e: set_bg(C["white"]))
             wd.bind("<Double-Button-1>", lambda e, p=path: os.startfile(p))
 
-    @staticmethod
-    def _ellipsize_name(name, maxlen=22):
-        """긴 파일명을 확장자(.png)는 남기고 그 앞에서 …로 줄임."""
-        if len(name) <= maxlen:
-            return name
-        root, ext = os.path.splitext(name)
-        keep = maxlen - len(ext) - 1
-        if keep < 4:
-            return name
-        return root[:keep] + "…" + ext
+    def _fit_name(self, label, fullname):
+        """이름 표시 폭에 맞춰, 넘칠 때만 확장자(.png)는 남기고 … 로 줄임.
+        창 가로가 넓어지면 원래 이름 전체가 다시 보인다."""
+        try:
+            avail = label.winfo_width()
+        except Exception:
+            return
+        if avail <= 1:
+            return
+        f = tkfont.Font(font=label.cget("font"))
+        if f.measure(fullname) <= avail:
+            if label.cget("text") != fullname:
+                label.config(text=fullname)
+            return
+        root, ext = os.path.splitext(fullname)
+        ell = "…"
+        best = ell + ext
+        lo, hi = 0, len(root)
+        while lo <= hi:
+            mid = (lo + hi) // 2
+            cand = root[:mid] + ell + ext
+            if f.measure(cand) <= avail:
+                best = cand
+                lo = mid + 1
+            else:
+                hi = mid - 1
+        if label.cget("text") != best:
+            label.config(text=best)
 
     def _copy_image(self, path, btn):
         ok = copy_image_to_clipboard(path)

@@ -50,9 +50,10 @@ def render(pad=10):
         box = (max(0, x0 - pad), max(0, y0 - pad),
                min(W, x1 + pad), min(H, y1 + pad))
         c = np.array(im.crop(box).convert("RGBA"))
-        # 카드 밖 흰 여백/둥근 모서리 바깥을 투명 처리 → 버튼에서 카드 라운딩이 살아남
-        whitish = (c[:, :, 0] >= 250) & (c[:, :, 1] >= 250) & (c[:, :, 2] >= 250)
-        c[whitish, 3] = 0
+        # 카드 배경(연회색)/흰 여백을 투명 처리 → 글리프(파란 선)만 남김.
+        # 버튼(Canvas)이 라운드 배경을 그리고 그 위에 글리프만 중앙 배치한다.
+        light = (c[:, :, 0] >= 232) & (c[:, :, 1] >= 232) & (c[:, :, 2] >= 232)
+        c[light, 3] = 0
         out = os.path.join(OUT_DIR, f"cap_{mode}.png")
         Image.fromarray(c, "RGBA").save(out)
         made.append(out)
