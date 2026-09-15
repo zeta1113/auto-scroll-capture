@@ -92,7 +92,7 @@ DEFAULT_CFG = {
     "hide_mouse": True,      # 캡처 시 마우스 숨기기
     "auto_copy": True,       # 캡처 후 클립보드에 자동 복사
     "split_enabled": False,  # 높이 분할 자르기
-    "split_height": 2000,    # 분할 높이(px)
+    "split_height": 4000,    # 분할 높이(px)
     "speed_idx": 1,          # 1x
     "save_dir": "",
     "hotkeys": {},           # {mode: {"mods":int, "vk":int, "text":str}} (비면 기본값)
@@ -2160,7 +2160,7 @@ class App:
         self.opt_auto_copy = tk.BooleanVar(value=bool(self.cfg.get("auto_copy", True)))
         self.opt_split_enabled = tk.BooleanVar(value=bool(self.cfg.get("split_enabled", False)))
         self.split_height_var = tk.StringVar(
-            value=str(int(self.cfg.get("split_height", 2000) or 2000)))
+            value=str(int(self.cfg.get("split_height", 4000) or 4000)))
         self.opt_expanded = tk.BooleanVar(value=bool(self.cfg.get("options_expanded", False)))
         self.speed_idx = tk.IntVar(value=int(self.cfg.get("speed_idx", SPEED_DEFAULT_IDX)))
         self.status = tk.StringVar()
@@ -2260,8 +2260,8 @@ class App:
         # 얇은 스크롤바
         st.configure("Thin.Vertical.TScrollbar", troughcolor=C["surface"],
                      background=C["thumb"], bordercolor=C["surface"],
-                     arrowcolor=C["surface"], arrowsize=1, width=8,
-                     relief="flat")
+                     arrowcolor=C["surface"], arrowsize=12, gripcount=0,
+                     lightcolor=C["thumb"], darkcolor=C["thumb"], relief="flat")
         st.map("Thin.Vertical.TScrollbar",
                background=[("active", C["thumb_hover"]),
                            ("pressed", C["thumb_hover"])])
@@ -2345,7 +2345,7 @@ class App:
         try:
             v = int(str(self.split_height_var.get()).strip())
         except (TypeError, ValueError):
-            v = 2000
+            v = 4000
         return max(50, v)
 
     def _validate_digits(self, proposed):
@@ -2395,8 +2395,8 @@ class App:
             self.opt_clip.pack_propagate(False)
             self.opt_clip.configure(height=int(row_h * 2) + 4)
         try:
-            self.more_btn.config(
-                text=self.t("btn_less") if expanded else self.t("btn_more"))
+            self.more_btn.set_text(
+                self.t("btn_less") if expanded else self.t("btn_more"))
         except Exception:
             pass
 
@@ -2654,8 +2654,11 @@ class App:
 
         canvas = tk.Canvas(listf, borderwidth=0, highlightthickness=0,
                            bg=MC["bg"], height=345)   # 약 4개 항목이 보이는 높이
-        vsb = ttk.Scrollbar(listf, orient="vertical", command=canvas.yview,
-                            style="Thin.Vertical.TScrollbar")
+        vsb = tk.Scrollbar(listf, orient="vertical", command=canvas.yview,
+                           width=12, bd=0, relief="flat",
+                           troughcolor=MC["surface"], bg=MC["thumb"],
+                           activebackground=MC["thumb_hover"],
+                           highlightthickness=0, elementborderwidth=0)
         canvas.configure(yscrollcommand=vsb.set)
         vsb.pack(side="right", fill="y")
         canvas.pack(side="left", fill="both", expand=True)
