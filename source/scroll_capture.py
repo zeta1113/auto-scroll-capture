@@ -269,6 +269,9 @@ TR = {
         "btn_refresh": "새로고침",
         "btn_open_item": "열기",
         "btn_copy": "복사",
+        "btn_delete": "삭제",
+        "confirm_delete_fmt": "정말 삭제하시겠습니까?\n{name}",
+        "delete_fail": "파일 삭제에 실패했습니다.",
         "copied_mark": "✓",
         "status_ready": "준비됨 — [캡처 시작]을 누르세요",
         "status_preparing": "캡처 준비 중...",
@@ -355,6 +358,9 @@ TR = {
         "btn_refresh": "Refresh",
         "btn_open_item": "Open",
         "btn_copy": "Copy",
+        "btn_delete": "Delete",
+        "confirm_delete_fmt": "Are you sure you want to delete?\n{name}",
+        "delete_fail": "Failed to delete the file.",
         "copied_mark": "✓",
         "status_ready": "Ready — press [Capture]",
         "status_preparing": "Preparing...",
@@ -441,6 +447,9 @@ TR = {
         "btn_refresh": "更新",
         "btn_open_item": "開く",
         "btn_copy": "コピー",
+        "btn_delete": "削除",
+        "confirm_delete_fmt": "本当に削除しますか？\n{name}",
+        "delete_fail": "ファイルの削除に失敗しました。",
         "copied_mark": "✓",
         "status_ready": "準備完了 — [キャプチャ開始] を押してください",
         "status_preparing": "準備中...",
@@ -527,6 +536,9 @@ TR = {
         "btn_refresh": "刷新",
         "btn_open_item": "打开",
         "btn_copy": "复制",
+        "btn_delete": "删除",
+        "confirm_delete_fmt": "确定要删除吗？\n{name}",
+        "delete_fail": "删除文件失败。",
         "copied_mark": "✓",
         "status_ready": "就绪 — 请点击 [开始截图]",
         "status_preparing": "准备中...",
@@ -1771,6 +1783,10 @@ class RoundButton(tk.Canvas):
         elif self.kind == "primary":
             fill = C["primary_hover"] if (self._hover or press) else C["primary"]
             fg, bd = "white", fill
+        elif self.kind == "danger":
+            fill = "#FDECEA" if (self._hover or press) else C["white"]
+            fg = "#E53935"
+            bd = "#E53935" if self._hover else C["border"]
         else:
             fill = C["surface"] if (self._hover or press) else C["white"]
             fg = C["text"]
@@ -2986,6 +3002,10 @@ class App:
                                min_width=52)
         copy_btn.command = (lambda p=path, b=copy_btn: self._copy_image(p, b))
         copy_btn.pack(anchor="e", pady=(4, 0))
+        del_btn = RoundButton(btns, text=self.t("btn_delete"), kind="danger",
+                              min_width=52,
+                              command=lambda p=path: self._delete_image(p))
+        del_btn.pack(anchor="e", pady=(4, 0))
         # 파일 정보(남은 공간) — 파일명은 .png 앞에서 말줄임
         try:
             with Image.open(path) as im2:
@@ -3013,7 +3033,8 @@ class App:
         tk.Frame(self.list_inner, bg=C["border"], height=1).pack(fill="x")
 
         # Hover(연블루) — 항목의 tk 위젯 배경 전환(라운드 버튼 여백도 함께)
-        hover_widgets = [row, inner, thumb, info, l1, l2, l3, btns, obtn, copy_btn]
+        hover_widgets = [row, inner, thumb, info, l1, l2, l3, btns,
+                         obtn, copy_btn, del_btn]
 
         def set_bg(color):
             for wd in hover_widgets:
@@ -3063,6 +3084,17 @@ class App:
             self.root.after(3000, lambda: self._restore_copy_btn(btn))
         else:
             messagebox.showwarning(self.t("info_title"), self.t("copy_fail"))
+
+    def _delete_image(self, path):
+        name = os.path.basename(path)
+        if not messagebox.askyesno(self.t("info_title"),
+                                   self.t("confirm_delete_fmt", name=name)):
+            return
+        try:
+            os.remove(path)
+        except Exception:
+            messagebox.showwarning(self.t("info_title"), self.t("delete_fail"))
+        self.refresh_list()
 
     def _restore_copy_btn(self, btn):
         try:
