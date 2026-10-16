@@ -52,6 +52,13 @@ cp -R "$BUNDLE" "$STAGE/"
 ln -s /Applications "$STAGE/Applications"
 DMG="$ROOT/release/ScrollCapture_mac_${ARCH}_v${VER}.dmg"
 rm -f "$DMG"
-hdiutil create -volname "ScrollCapture $VER" -srcfolder "$STAGE" \
-  -ov -format UDZO "$DMG"
+# hdiutil 은 CI 에서 간헐적으로 "Resource busy" 로 실패 → 재시도
+for i in 1 2 3 4 5; do
+  if hdiutil create -volname "ScrollCapture $VER" -srcfolder "$STAGE" \
+       -ov -format UDZO "$DMG"; then
+    break
+  fi
+  echo "[build] hdiutil 실패($i) — 재시도"; sleep $((i * 5))
+  [ "$i" -eq 5 ] && exit 1
+done
 echo "[build] 완료: $DMG"
