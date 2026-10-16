@@ -157,6 +157,52 @@ GitHub 릴리즈에 새 버전이 올라오면 프로그램이 **자동으로 �
 
 ---
 
+## macOS 버전 (Monterey 12 / Ventura 13 이상)
+
+### 설치
+1. [최신 릴리스](https://github.com/zeta1113/auto-scroll-capture/releases/latest)에서 내 Mac에 맞는 DMG를 받습니다.
+   - **Apple Silicon(M1/M2/M3…)**: `ScrollCapture_mac_arm64_v{버전}.dmg`
+   - **Intel Mac**: `ScrollCapture_mac_x86_64_v{버전}.dmg`
+   - (확인:  메뉴 > 이 Mac에 관하여 > 칩/프로세서)
+2. DMG를 열고 `ScrollCapture`를 **Applications(응용 프로그램)** 폴더로 끌어 놓습니다.
+3. 처음 실행할 때 "확인되지 않은 개발자" 경고가 나오면
+   **Finder에서 앱을 우클릭(Control+클릭) → 열기 → 열기**를 누릅니다(최초 1회).
+   - 그래도 막히면 터미널에서: `xattr -dr com.apple.quarantine /Applications/ScrollCapture.app`
+
+### 권한 허용 (필수, 최초 1회)
+**시스템 설정 > 개인정보 보호 및 보안**에서 `ScrollCapture`를 허용한 뒤 앱을 다시 실행합니다.
+- **화면 기록** — 다른 앱 화면을 캡처하기 위해 필요
+- **손쉬운 사용** — 대상 창을 자동 스크롤하고 앞으로 가져오기 위해 필요
+
+앱 실행 시 권한이 없으면 안내 창과 시스템 설정이 자동으로 열립니다.
+> 새 버전으로 업데이트하면 macOS가 다른 앱으로 인식해 **권한을 다시 허용**해야 할 수 있습니다
+> (목록에서 기존 ScrollCapture 항목을 `-`로 지우고 다시 추가).
+
+### Windows 판과 다른 점
+| 항목 | Windows | macOS |
+|------|---------|-------|
+| 기본 단축키 | Alt + Shift + 1~7 | **Option + Shift + 1~7** |
+| 저장 폴더(기본) | 실행 파일 옆 `capture` | `~/Pictures/ScrollCapture` |
+| 설정 파일 | `%APPDATA%\ScrollCapture` | `~/Library/Application Support/ScrollCapture` |
+| 윈도우 즉시 캡처 | 창을 앞으로 가져와 화면 캡처 | 창만 직접 캡처(가려져 있어도, 그림자 제외) |
+| 해상도 | 화면 픽셀 그대로 | Retina는 실제 픽셀(2배) 해상도로 저장 |
+
+- 스크롤은 대상 앱에 스크롤 이벤트를 직접 보내 **마우스 포인터를 움직이지 않습니다**.
+  (이 방식이 안 먹히는 앱에서만 PageDown 키 → 포인터 잠깐 이동 휠 순서로 자동 전환)
+- 영역 선택/모니터 선택 중 취소: **Esc** 또는 **우클릭**
+- macOS 15(Sequoia) 이상에서는 Option+Shift만 쓰는 단축키를 시스템이 막습니다 →
+  [단축키 매핑]에서 Ctrl 또는 Cmd를 포함한 조합으로 바꿔 주세요.
+
+### macOS 빌드
+GitHub Actions(`.github/workflows/build-mac.yml`)가 릴리스 게시 시 자동으로
+arm64 / x86_64 DMG를 만들어 릴리스에 첨부합니다. Mac에서 직접 빌드하려면:
+```bash
+python3 -m pip install -r source/requirements-mac.txt pyinstaller
+./build_mac.sh
+```
+
+---
+
 ## 사용 방법
 
 ### A. 배포본(exe) 실행
