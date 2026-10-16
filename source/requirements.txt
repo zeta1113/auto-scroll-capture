@@ -1,5 +1,8 @@
 numpy
 opencv-python
-mss
-pywin32
 pillow
+mss; sys_platform == "win32"
+pywin32; sys_platform == "win32"
+pyobjc-framework-Quartz; sys_platform == "darwin"
+pyobjc-framework-Cocoa; sys_platform == "darwin"
+pyobjc-framework-ApplicationServices; sys_platform == "darwin"

@@ -25,12 +25,19 @@ from datetime import datetime
 
 import numpy as np
 import cv2
-import mss
-import win32api
-import win32con
-import win32gui
-import win32process
-import win32clipboard
+
+IS_MAC = sys.platform == "darwin"
+if IS_MAC:
+    import contextlib
+    import platform_mac as pm
+else:
+    import mss
+    import win32api
+    import win32con
+    import win32gui
+    import win32process
+    import win32clipboard
+    pm = None
 
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
@@ -72,8 +79,26 @@ def resource_path(name):
 # ------------------------------------------------------------------
 # 설정 저장/불러오기
 # ------------------------------------------------------------------
+def default_save_dir():
+    if IS_MAC:   # .app 번들 내부는 쓰기 불가 → 사진 폴더
+        return os.path.join(os.path.expanduser("~"), "Pictures", "ScrollCapture")
+    return os.path.join(app_base_dir(), "capture")
+
+
+def open_path(path):
+    """파일/폴더를 기본 앱으로 열기."""
+    if IS_MAC:
+        pm.open_path(path)
+    else:
+        os.startfile(path)
+
+
 def config_path():
-    base = os.environ.get("APPDATA") or app_base_dir()
+    if IS_MAC:
+        base = os.path.join(os.path.expanduser("~"), "Library",
+                            "Application Support")
+    else:
+        base = os.environ.get("APPDATA") or app_base_dir()
     d = os.path.join(base, "ScrollCapture")
     try:
         os.makedirs(d, exist_ok=True)
@@ -111,8 +136,23 @@ DEFAULT_HOTKEYS = {
     "scroll_window":  (ALT_SHIFT, 0x36, "Alt + Shift + 6"),
     "scroll_display": (ALT_SHIFT, 0x37, "Alt + Shift + 7"),
 }
+if IS_MAC:
+    # macOS: Option + Shift + 1~7  (Carbon 수정자 / macOS 가상 키코드)
+    _OPT_SHIFT = pm.MOD_OPTION | pm.MOD_SHIFT
+    DEFAULT_HOTKEYS = {
+        "shot_region":    (_OPT_SHIFT, 18, "Option + Shift + 1"),
+        "shot_window":    (_OPT_SHIFT, 19, "Option + Shift + 2"),
+        "shot_display":   (_OPT_SHIFT, 20, "Option + Shift + 3"),
+        "shot_all":       (_OPT_SHIFT, 21, "Option + Shift + 4"),
+        "scroll_region":  (_OPT_SHIFT, 23, "Option + Shift + 5"),
+        "scroll_window":  (_OPT_SHIFT, 22, "Option + Shift + 6"),
+        "scroll_display": (_OPT_SHIFT, 26, "Option + Shift + 7"),
+    }
 HOTKEY_MODES = ["shot_region", "shot_window", "shot_display", "shot_all",
                 "scroll_region", "scroll_window", "scroll_display"]
+
+# 오버레이/툴팁 등 고정 폰트
+UI_FONT = "Apple SD Gothic Neo" if IS_MAC else "맑은 고딕"
 
 
 def load_cfg():
@@ -142,16 +182,22 @@ SPEED_DEFAULT_IDX = 1  # 1x
 # 모니터 정보
 # ------------------------------------------------------------------
 def primary_screen():
+    if IS_MAC:
+        return pm.primary_screen()
     return (0, 0, win32api.GetSystemMetrics(0), win32api.GetSystemMetrics(1))
 
 
 def virtual_screen():
+    if IS_MAC:
+        return pm.virtual_screen()
     return (win32api.GetSystemMetrics(76), win32api.GetSystemMetrics(77),
             win32api.GetSystemMetrics(78), win32api.GetSystemMetrics(79))
 
 
 def get_monitors():
     """각 모니터의 (x, y, w, h) 목록."""
+    if IS_MAC:
+        return pm.get_monitors()
     mons = []
     try:
         for hMon, _hdc, _rect in win32api.EnumDisplayMonitors(None, None):
@@ -167,6 +213,8 @@ def get_monitors():
 
 def get_window_rect(hwnd):
     """창의 '보이는' 사각형 (x, y, w, h). DWM 확장 프레임 우선(불가 시 GetWindowRect)."""
+    if IS_MAC:
+        return pm.get_window_rect(hwnd)
     try:
         from ctypes import wintypes
         rect = wintypes.RECT()
@@ -294,6 +342,14 @@ TR = {
         "err_no_scroll": ("스크롤이 되지 않아 한 화면만 캡처되었습니다.\n"
                           "· 대상 대화 영역(스크롤되는 부분)을 정확히 지정했는지\n"
                           "· 이 프로그램을 관리자 권한으로 실행했는지 확인하세요."),
+        "err_no_scroll_mac": ("스크롤이 되지 않아 한 화면만 캡처되었습니다.\n"
+                              "· 대상 영역(스크롤되는 부분)을 정확히 지정했는지\n"
+                              "· 시스템 설정 > 개인정보 보호 및 보안 > '손쉬운 사용'에\n"
+                              "  이 앱이 허용되어 있는지 확인하세요."),
+        "mac_perm_msg": ("캡처하려면 macOS 권한이 필요합니다.\n\n"
+                         "시스템 설정 > 개인정보 보호 및 보안에서\n"
+                         "  · 화면 기록\n  · 손쉬운 사용\n"
+                         "항목에 'ScrollCapture'를 허용한 뒤 앱을 다시 실행해 주세요."),
         "copy_done": "이미지를 클립보드에 복사했습니다.",
         "copy_fail": "클립보드 복사에 실패했습니다.",
         "ok_mark": "OK",
@@ -383,6 +439,14 @@ TR = {
         "err_no_scroll": ("Only one screen was captured because scrolling did not work.\n"
                           "· Check that you selected the actual scrolling area\n"
                           "· Try running this program as administrator."),
+        "err_no_scroll_mac": ("Only one screen was captured because scrolling did not work.\n"
+                              "· Check that you selected the actual scrolling area\n"
+                              "· Allow this app in System Settings > Privacy & Security\n"
+                              "  > Accessibility."),
+        "mac_perm_msg": ("macOS permissions are required to capture.\n\n"
+                         "In System Settings > Privacy & Security, allow 'ScrollCapture' in\n"
+                         "  · Screen Recording\n  · Accessibility\n"
+                         "then restart the app."),
         "copy_done": "Image copied to clipboard.",
         "copy_fail": "Failed to copy to clipboard.",
         "ok_mark": "OK",
@@ -472,6 +536,14 @@ TR = {
         "err_no_scroll": ("スクロールできず1画面のみキャプチャされました。\n"
                           "· スクロールする範囲を正しく指定したか\n"
                           "· 管理者権限で実行しているか確認してください。"),
+        "err_no_scroll_mac": ("スクロールできず1画面のみキャプチャされました。\n"
+                              "· スクロールする範囲を正しく指定したか\n"
+                              "· システム設定 > プライバシーとセキュリティ > アクセシビリティで\n"
+                              "  このアプリが許可されているか確認してください。"),
+        "mac_perm_msg": ("キャプチャには macOS の権限が必要です。\n\n"
+                         "システム設定 > プライバシーとセキュリティで\n"
+                         "  · 画面収録\n  · アクセシビリティ\n"
+                         "に 'ScrollCapture' を許可し、アプリを再起動してください。"),
         "copy_done": "画像をクリップボードにコピーしました。",
         "copy_fail": "クリップボードへのコピーに失敗しました。",
         "ok_mark": "OK",
@@ -561,6 +633,14 @@ TR = {
         "err_no_scroll": ("由于无法滚动，只截取了一屏。\n"
                           "· 请确认已正确选择可滚动的区域\n"
                           "· 请尝试以管理员身份运行本程序。"),
+        "err_no_scroll_mac": ("由于无法滚动，只截取了一屏。\n"
+                              "· 请确认已正确选择可滚动的区域\n"
+                              "· 请在 系统设置 > 隐私与安全性 > 辅助功能 中\n"
+                              "  允许本应用。"),
+        "mac_perm_msg": ("截图需要 macOS 权限。\n\n"
+                         "请在 系统设置 > 隐私与安全性 中为 'ScrollCapture' 允许\n"
+                         "  · 屏幕录制\n  · 辅助功能\n"
+                         "然后重新启动应用。"),
         "copy_done": "图片已复制到剪贴板。",
         "copy_fail": "复制到剪贴板失败。",
         "ok_mark": "OK",
@@ -581,13 +661,14 @@ def tr(lang, key, **kw):
 # ------------------------------------------------------------------
 # DPI 인식 (고해상도 모니터 좌표/크기 정확도)
 # ------------------------------------------------------------------
-try:
-    ctypes.windll.shcore.SetProcessDpiAwareness(2)  # PER_MONITOR_DPI_AWARE
-except Exception:
+if not IS_MAC:
     try:
-        ctypes.windll.user32.SetProcessDPIAware()
+        ctypes.windll.shcore.SetProcessDpiAwareness(2)  # PER_MONITOR_DPI_AWARE
     except Exception:
-        pass
+        try:
+            ctypes.windll.user32.SetProcessDPIAware()
+        except Exception:
+            pass
 
 WHEEL_DELTA = 120
 SCROLL_NOTCHES = 2       # 캡처(하강) 시 한 스텝 노치 — 작을수록 겹침이 안정적
@@ -603,6 +684,9 @@ METHODS = ["wheel", "send", "key"]  # 스크롤 방식 우선순위
 def ensure_foreground(hwnd):
     """대상 창을 확실하게 앞으로 가져온다(AttachThreadInput 우회 포함)."""
     if not hwnd:
+        return
+    if IS_MAC:
+        pm.ensure_foreground(hwnd)
         return
     try:
         fg = win32gui.GetForegroundWindow()
@@ -669,6 +753,9 @@ def _key(hwnd, cx, cy, down):
 
 
 def apply_scroll(hwnd, cx, cy, method, down, notches, park=None):
+    if IS_MAC:   # 포인터를 옮기지 않는 이벤트 전달(send) 우선
+        pm.apply_scroll(hwnd, cx, cy, method, down, notches)
+        return
     if method == "wheel":
         _wheel(hwnd, cx, cy, -notches if down else notches)
     elif method == "send":
@@ -686,8 +773,17 @@ def apply_scroll(hwnd, cx, cy, method, down, notches, park=None):
 # ==================================================================
 # 캡처 유틸
 # ==================================================================
+def screen_grabber():
+    """캡처 세션(Windows: mss). macOS 는 Quartz 를 직접 사용하므로 빈 컨텍스트."""
+    if IS_MAC:
+        return contextlib.nullcontext(None)
+    return mss.mss()
+
+
 def grab(sct, region):
     x, y, w, h = region
+    if IS_MAC:   # Retina 는 실제 픽셀(2배) 해상도로 반환
+        return pm.grab_region(x, y, w, h)
     shot = sct.grab({"left": x, "top": y, "width": w, "height": h})
     img = np.array(shot)  # BGRA
     return cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
@@ -917,7 +1013,8 @@ def detect_fixed_deep(sct, region, hwnd, cx, cy, notches, wait, park):
     """
     # 감지는 '작은 스텝(휠)'으로 깊이를 제어(PageDown 큰 스텝이 바닥을 지나치는 것 방지)
     saved_methods = list(METHODS)
-    METHODS[:] = ["wheel", "send", "key"]
+    METHODS[:] = (["send", "wheel", "key"] if IS_MAC
+                  else ["wheel", "send", "key"])
     try:
         # sticky 활성화용으로 적당히 내려간 뒤, '실제로 움직인' 프레임만 수집
         _scroll_down_n(sct, region, hwnd, cx, cy, notches, wait, park, 5)
@@ -1031,8 +1128,11 @@ def capture_scrolling_region(region, status_cb, opts=None):
     # 이 방식들이 안 먹히는 창에서만 마지막으로 wheel(커서 위치 필요)을 쓴다.
     METHODS[:] = ["send", "key", "wheel"]
 
-    child = win32gui.WindowFromPoint((cx, cy))
-    hwnd = ctypes.windll.user32.GetAncestor(child, GA_ROOT)
+    if IS_MAC:
+        hwnd = pm.window_at_point(cx, cy)
+    else:
+        child = win32gui.WindowFromPoint((cx, cy))
+        hwnd = ctypes.windll.user32.GetAncestor(child, GA_ROOT)
     ensure_foreground(hwnd)
     time.sleep(0.4)
 
@@ -1040,7 +1140,15 @@ def capture_scrolling_region(region, status_cb, opts=None):
     header_img = None
     footer_img = None
 
-    with mss.mss() as sct:
+    with screen_grabber() as sct:
+        # 화면 좌표(region, 포인트) ↔ 이미지 픽셀 배율. Windows=1, macOS Retina=2.
+        # 이후 w/h 는 '이미지 픽셀' 크기, region/cx/cy 는 '화면 좌표'로 사용한다.
+        probe = grab(sct, region)
+        sc = max(1, int(round(probe.shape[1] / float(w))))
+        xs, ys, ws, hs = region
+        h, w = probe.shape[:2]
+        del probe
+
         # ---------- 1) (옵션) 맨 위로 이동 ----------
         if auto_top:
             status_cb(S.get("status_moving_top", "상단으로 이동 중..."))
@@ -1055,6 +1163,9 @@ def capture_scrolling_region(region, status_cb, opts=None):
             pref = scroll_to_top(sct, region, hwnd, cx, cy, top_notches, wait, park=park)
 
         # 고정 상단(헤더)은 맨 위 1회, 고정 하단(트레이바 등)은 메모리에 보관 후 맨 아래에 덮음
+        if sc > 1:   # Retina: 화면 좌표가 정수가 되도록 밴드를 배율의 배수로 올림
+            top_band = -(-top_band // sc) * sc if top_band > 0 else 0
+            bot_band = -(-bot_band // sc) * sc if bot_band > 0 else 0
         H_full = h
         full0 = grab(sct, region)
         if top_band > 0:
@@ -1062,10 +1173,11 @@ def capture_scrolling_region(region, status_cb, opts=None):
         if bot_band > 0:
             footer_img = full0[H_full - bot_band:H_full].copy()
         if top_band > 0 or bot_band > 0:
-            y2 = y + top_band
+            y2 = ys + top_band // sc
+            hs2 = hs - (top_band + bot_band) // sc
             h = h - top_band - bot_band
-            region = (x, y2, w, h)
-            cx, cy = x + w // 2, y2 + h // 2
+            region = (xs, y2, ws, hs2)
+            cx, cy = xs + ws // 2, y2 + hs2 // 2
 
         # ---------- 1-c) (옵션) sticky 등 '깊이 스크롤해야 나타나는' 고정 영역 감지 ----------
         # 실제 깊은 위치의 연속 프레임을 비교해 위/좌/우 고정 밴드를 잡아 초기 감지를 보강.
@@ -1335,61 +1447,91 @@ def save_png_split(img, out_dir, split_h):
 # ==================================================================
 class RegionSelector:
     """드래그로 영역 선택. multi=True면 전체 가상 화면(멀티 모니터) 위에서 선택.
-    실제 좌표는 win32 커서 좌표로 취득해 DPI 스케일 불일치를 방지한다."""
+    Windows: 가상 화면 전체를 덮는 오버레이 1개, 실제 좌표는 win32 커서 좌표(DPI 안전).
+    macOS  : 창이 디스플레이를 넘을 수 없으므로 모니터마다 오버레이를 하나씩 띄운다."""
 
     def __init__(self, master, multi=False, guide=""):
         self.result = None
         self._start_scr = None
-        self._start_cnv = None
-        vx, vy, vw, vh = virtual_screen() if multi else primary_screen()
-        self._org = (vx, vy)
+        self._rects = []
+        if IS_MAC:
+            areas = get_monitors() if multi else [primary_screen()]
+        else:
+            areas = [virtual_screen() if multi else primary_screen()]
 
-        self.top = tk.Toplevel(master)
-        self.top.overrideredirect(True)
-        self.top.geometry(f"{vw}x{vh}+{vx}+{vy}")
-        self.top.attributes("-alpha", 0.28)
-        self.top.attributes("-topmost", True)
-        self.top.configure(bg="black", cursor="cross")
-        self.cv = tk.Canvas(self.top, highlightthickness=0, bg="black")
-        self.cv.pack(fill="both", expand=True)
-        self.cv.create_text(
-            vw // 2, 40, text=guide,
-            fill="white", font=("맑은 고딕", 16, "bold"),
-        )
-        self.rect_id = None
-        self.cv.bind("<ButtonPress-1>", self._down)
-        self.cv.bind("<B1-Motion>", self._move)
-        self.cv.bind("<ButtonRelease-1>", self._up)
-        self.top.bind("<Escape>", lambda e: self._cancel())
+        self.tops = []
+        self.canvases = []        # (canvas, 원점x, 원점y)
+        for (vx, vy, vw, vh) in areas:
+            top = tk.Toplevel(master)
+            top.overrideredirect(True)
+            top.geometry(f"{vw}x{vh}+{vx}+{vy}")
+            top.attributes("-alpha", 0.28)
+            top.attributes("-topmost", True)
+            top.configure(bg="black", cursor="cross")
+            cv = tk.Canvas(top, highlightthickness=0, bg="black")
+            cv.pack(fill="both", expand=True)
+            cv.create_text(vw // 2, 40, text=guide, fill="white",
+                           font=(UI_FONT, 16, "bold"))
+            cv.bind("<ButtonPress-1>", self._down)
+            cv.bind("<B1-Motion>", self._move)
+            cv.bind("<ButtonRelease-1>", self._up)
+            # 취소: Esc (+ macOS 는 테두리 없는 창이 키 입력을 못 받을 수 있어 우클릭도)
+            top.bind("<Escape>", lambda e: self._cancel())
+            if IS_MAC:
+                cv.bind("<Button-2>", lambda e: self._cancel())
+                cv.bind("<Button-3>", lambda e: self._cancel())
+            self.tops.append(top)
+            self.canvases.append((cv, vx, vy))
+        self.top = self.tops[0]
         self.top.focus_force()
         self.top.grab_set()
+        if len(self.tops) > 1:   # 다른 모니터의 오버레이도 클릭을 받도록 전역 grab 해제
+            self.top.grab_release()
         master.wait_window(self.top)
 
+    def _pointer(self, e):
+        if IS_MAC:
+            return (e.x_root, e.y_root)
+        return win32gui.GetCursorPos()
+
+    def _draw(self, x1, y1, x2, y2):
+        for rid, (cv, _, _) in zip(self._rects, self.canvases):
+            cv.delete(rid)
+        self._rects = []
+        for cv, ox, oy in self.canvases:
+            self._rects.append(cv.create_rectangle(
+                x1 - ox, y1 - oy, x2 - ox, y2 - oy, outline="#ff3b30", width=2))
+
     def _down(self, e):
-        self._start_scr = win32gui.GetCursorPos()
-        self._start_cnv = (e.x, e.y)
-        if self.rect_id:
-            self.cv.delete(self.rect_id)
-        self.rect_id = self.cv.create_rectangle(
-            e.x, e.y, e.x, e.y, outline="#ff3b30", width=2
-        )
+        self._start_scr = self._pointer(e)
+        self._start_root = (e.x_root, e.y_root)
+        self._draw(e.x_root, e.y_root, e.x_root, e.y_root)
 
     def _move(self, e):
-        if self.rect_id:
-            self.cv.coords(self.rect_id, self._start_cnv[0], self._start_cnv[1], e.x, e.y)
+        if self._start_scr is not None:
+            self._draw(self._start_root[0], self._start_root[1], e.x_root, e.y_root)
 
     def _up(self, e):
-        end = win32gui.GetCursorPos()
+        if self._start_scr is None:
+            return
+        end = self._pointer(e)
         x1, y1 = self._start_scr
         x2, y2 = end
-        x, y = min(x1, x2), min(y1, y2)
-        w, h = abs(x2 - x1), abs(y2 - y1)
+        x, y = int(min(x1, x2)), int(min(y1, y2))
+        w, h = int(abs(x2 - x1)), int(abs(y2 - y1))
         self.result = (x, y, w, h) if (w >= 10 and h >= 10) else None
-        self.top.destroy()
+        self._close()
 
     def _cancel(self):
         self.result = None
-        self.top.destroy()
+        self._close()
+
+    def _close(self):
+        for t in self.tops[1:] + self.tops[:1]:   # 대기 중인 첫 창은 마지막에
+            try:
+                t.destroy()
+            except Exception:
+                pass
 
 
 class MonitorPicker:
@@ -1408,10 +1550,13 @@ class MonitorPicker:
         self.top.attributes("-topmost", True)
         self.top.configure(bg="#1e6fff", cursor="hand2")
         self.lbl = tk.Label(self.top, text=guide, bg="#1e6fff", fg="white",
-                            font=("맑은 고딕", 16, "bold"))
+                            font=(UI_FONT, 16, "bold"))
         self.lbl.place(relx=0.5, rely=0.5, anchor="center")
         self.top.bind("<Button-1>", lambda e: self._pick())
         self.top.bind("<Escape>", lambda e: self._close(None))
+        if IS_MAC:
+            self.top.bind("<Button-2>", lambda e: self._close(None))
+            self.top.bind("<Button-3>", lambda e: self._close(None))
         self._poll()
         self.top.focus_force()
         master.wait_window(self.top)
@@ -1425,7 +1570,8 @@ class MonitorPicker:
 
     def _poll(self):
         try:
-            x, y = win32gui.GetCursorPos()
+            x, y = (self.top.winfo_pointerxy() if IS_MAC
+                    else win32gui.GetCursorPos())
         except Exception:
             x, y = 0, 0
         r = self._mon_at(x, y)
@@ -1465,9 +1611,9 @@ class WindowPicker:
         self.top.attributes("-alpha", 0.93)
         self.top.configure(bg="#1e6fff")
         tk.Label(self.top, text=guide, bg="#1e6fff", fg="white",
-                 font=("맑은 고딕", 14, "bold"), padx=22, pady=12).pack()
+                 font=(UI_FONT, 14, "bold"), padx=22, pady=12).pack()
         self.top.update_idletasks()
-        vx, vy, vw, vh = virtual_screen()
+        vx, vy, vw, vh = primary_screen() if IS_MAC else virtual_screen()
         bw = self.top.winfo_width()
         self.top.geometry(f"+{vx + (vw - bw) // 2}+{vy + 40}")
 
@@ -1483,12 +1629,20 @@ class WindowPicker:
 
         self.top.bind("<Escape>", lambda e: self._close(None))
         self.top.focus_force()
-        self._prev_btn = bool(win32api.GetAsyncKeyState(0x01) & 0x8000)
+        self._prev_btn = self._left_down()
         self.top.after(60, self._register_own)
         self._job = self.top.after(120, self._poll)
         master.wait_window(self.top)
 
+    @staticmethod
+    def _left_down():
+        if IS_MAC:
+            return pm.left_button_down()
+        return bool(win32api.GetAsyncKeyState(0x01) & 0x8000)
+
     def _register_own(self):
+        if IS_MAC:          # macOS 는 자기 프로세스(pid) 창을 통째로 제외
+            return
         for w in [self.top] + self.edges:
             try:
                 hid = w.winfo_id()
@@ -1499,6 +1653,8 @@ class WindowPicker:
                 pass
 
     def _window_under(self, x, y):
+        if IS_MAC:
+            return pm.window_at_point(x, y)
         try:
             root = ctypes.windll.user32.GetAncestor(
                 win32gui.WindowFromPoint((x, y)), GA_ROOT)
@@ -1530,7 +1686,8 @@ class WindowPicker:
 
     def _poll(self):
         try:
-            x, y = win32gui.GetCursorPos()
+            x, y = (self.top.winfo_pointerxy() if IS_MAC
+                    else win32gui.GetCursorPos())
         except Exception:
             x, y = 0, 0
         hwnd = self._window_under(x, y)
@@ -1538,7 +1695,10 @@ class WindowPicker:
             self.cur_hwnd = hwnd
             self._draw_outline(hwnd)
 
-        btn = bool(win32api.GetAsyncKeyState(0x01) & 0x8000)
+        if IS_MAC and pm.right_button_down():     # 우클릭 = 취소
+            self._close(None)
+            return
+        btn = self._left_down()
         if btn and not self._prev_btn and self.cur_hwnd:
             self._close(self.cur_hwnd)
             return
@@ -1614,13 +1774,13 @@ class Tooltip:
         head = tk.Frame(frm, bg="#2b2b2b")
         head.pack(anchor="w", padx=10, pady=(6, 0))
         tk.Label(head, text=self._val(self.title), bg="#2b2b2b", fg="white",
-                 font=("맑은 고딕", 9, "bold")).pack(side="left")
+                 font=(UI_FONT, 9, "bold")).pack(side="left")
         key_txt = self._val(self.key)
         if key_txt:
             tk.Label(head, text=key_txt, bg="#2b2b2b", fg="#8fb7ff",
-                     font=("맑은 고딕", 9, "bold")).pack(side="left", padx=(8, 0))
+                     font=(UI_FONT, 9, "bold")).pack(side="left", padx=(8, 0))
         tk.Label(frm, text=self._val(self.hint), bg="#2b2b2b", fg="#cfcfcf",
-                 font=("맑은 고딕", 8), justify="left", wraplength=220).pack(
+                 font=(UI_FONT, 8), justify="left", wraplength=220).pack(
                      anchor="w", padx=10, pady=(1, 7))
         tw.update_idletasks()
         tw.geometry(f"+{cx - tw.winfo_width() // 2}+{y}")
@@ -1705,6 +1865,10 @@ class HotkeyManager:
                     user32.UnregisterHotKey(None, hid)
                 except Exception:
                     pass
+
+
+if IS_MAC:   # macOS: Carbon RegisterEventHotKey 기반(같은 인터페이스)
+    HotkeyManager = pm.HotkeyManager
 
 
 # keysym -> 표시 이름
@@ -2013,6 +2177,8 @@ class HotkeyDialog:
             self.temp[mode] = None
             self._refresh_entry(mode)
             return "break"
+        if IS_MAC:
+            return self._on_key_mac(event, mode)
         mods = 0
         parts = []
         if win32api.GetKeyState(win32con.VK_CONTROL) < 0:
@@ -2033,6 +2199,34 @@ class HotkeyDialog:
             return "break"
         parts.append(name)
         self.temp[mode] = (mods, int(event.keycode), " + ".join(parts))
+        self._refresh_entry(mode)
+        return "break"
+
+    def _on_key_mac(self, event, mode):
+        """macOS: 지금 눌린 물리 키코드/수정자를 NSEvent 에서 직접 얻는다
+        (Option 조합으로 바뀐 문자와 무관). 실패 시 Tk keysym/state 로 폴백."""
+        info = pm.current_key_event()
+        if info is not None:
+            kc, mods = info
+        else:
+            kc = pm.keysym_to_keycode(_key_display_name(event.keysym) or "")
+            st = int(event.state)
+            mods = 0
+            if st & 0x0001:
+                mods |= pm.MOD_SHIFT
+            if st & 0x0004:
+                mods |= pm.MOD_CONTROL
+            if st & 0x0010:
+                mods |= pm.MOD_OPTION
+            if st & 0x0008:
+                mods |= pm.MOD_CMD
+        if kc is None or kc in pm.MODIFIER_KEYCODES:
+            return "break"
+        name = pm.KEYCODE_NAMES.get(kc)
+        if not name:
+            return "break"
+        parts = pm.mods_text(mods) + [name]
+        self.temp[mode] = (mods, int(kc), " + ".join(parts))
         self._refresh_entry(mode)
         return "break"
 
@@ -2064,7 +2258,7 @@ class BusyOverlay:
         self._job = None
         self.top = tk.Toplevel(master)
         self.top.overrideredirect(True)
-        vx, vy, vw, vh = virtual_screen()
+        vx, vy, vw, vh = primary_screen() if IS_MAC else virtual_screen()
         self.top.geometry(f"{vw}x{vh}+{vx}+{vy}")
         self.top.attributes("-alpha", 0.6)
         self.top.attributes("-topmost", True)
@@ -2079,7 +2273,7 @@ class BusyOverlay:
                                             extent=90, style="arc",
                                             outline="#4aa3ff", width=10)
         tk.Label(box, text=text, bg="black", fg="white",
-                 font=("맑은 고딕", 20, "bold")).pack()
+                 font=(UI_FONT, 20, "bold")).pack()
         self._start = 90
         self._spin()
 
@@ -2128,12 +2322,13 @@ def pick_font_family():
     try:
         import tkinter.font as tkfont
         fams = set(tkfont.families())
-        for f in ("Pretendard", "Noto Sans KR", "맑은 고딕", "Malgun Gothic"):
+        for f in ("Pretendard", "Noto Sans KR", "맑은 고딕", "Malgun Gothic",
+                  "Apple SD Gothic Neo"):
             if f in fams:
                 return f
     except Exception:
         pass
-    return "맑은 고딕"
+    return UI_FONT
 
 
 # ==================================================================
@@ -2146,6 +2341,12 @@ class App:
         self.cfg = load_cfg()
 
         self.root = tk.Tk()
+        if IS_MAC:
+            # Tk(macOS)는 72dpi 기준이라 pt 글꼴이 작게 보임 → Windows(96dpi)와 같은 크기로
+            try:
+                self.root.tk.call("tk", "scaling", 96.0 / 72.0)
+            except Exception:
+                pass
         self.root.geometry("560x760")
         self.root.minsize(520, 680)
         self.root.configure(bg=MC["bg"])
@@ -2165,7 +2366,7 @@ class App:
         self._setup_style()
 
         # 상태 변수 (언어 전환 시에도 유지)
-        default_dir = self.cfg.get("save_dir") or os.path.join(app_base_dir(), "capture")
+        default_dir = self.cfg.get("save_dir") or default_save_dir()
         self.save_dir = tk.StringVar(value=default_dir)
         self.opt_scroll_top = tk.BooleanVar(value=bool(self.cfg.get("scroll_top", True)))
         self.opt_multi = tk.BooleanVar(value=bool(self.cfg.get("multi_monitor", True)))
@@ -2192,6 +2393,18 @@ class App:
         self.refresh_list()
         self._apply_hotkeys()
         self._auto_check_update()
+        if IS_MAC and not os.environ.get("SCROLLCAPTURE_NO_PERM_PROMPT"):
+            self.root.after(600, self._check_mac_permissions)
+
+    # ---------- macOS 권한(화면 기록 / 손쉬운 사용) ----------
+    def _check_mac_permissions(self):
+        screen, ax = pm.permissions_status()
+        if screen and ax:
+            return
+        pm.request_permissions()            # 시스템 권한 요청 창
+        messagebox.showinfo(self.t("info_title"), self.t("mac_perm_msg"))
+        pm.open_privacy_settings("ScreenCapture" if not screen
+                                 else "Accessibility")
 
     # ---------- 번역 헬퍼 ----------
     def t(self, key, **kw):
@@ -2683,8 +2896,13 @@ class App:
         self.list_inner.bind(
             "<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
         canvas.bind("<Configure>", lambda e: canvas.itemconfig(self._win, width=e.width))
-        canvas.bind_all(
-            "<MouseWheel>", lambda e: canvas.yview_scroll(int(-e.delta / 120), "units"))
+        if IS_MAC:   # macOS 는 delta 가 ±1~수 단위(트랙패드 포함)
+            canvas.bind_all(
+                "<MouseWheel>", lambda e: canvas.yview_scroll(-e.delta, "units"))
+        else:
+            canvas.bind_all(
+                "<MouseWheel>",
+                lambda e: canvas.yview_scroll(int(-e.delta / 120), "units"))
         self._list_canvas = canvas
 
         # 이미 발견된 업데이트가 있으면 배너 복원(언어 전환 후 등)
@@ -2776,7 +2994,7 @@ class App:
     def open_dir(self):
         d = self.save_dir.get()
         os.makedirs(d, exist_ok=True)
-        os.startfile(d)
+        open_path(d)
 
     # ---------- 캡처 ----------
     def _set_busy(self, busy):
@@ -2811,6 +3029,8 @@ class App:
     def start_capture(self, mode):
         if self.busy:
             return
+        if IS_MAC:   # 단축키로 백그라운드에서 호출돼도 오버레이가 클릭을 받도록
+            pm.activate_self()
         self._hidden = self.opt_hide.get()
         if self._hidden:
             self.root.withdraw()
@@ -2865,6 +3085,8 @@ class App:
                 "status_moving_top", "status_detecting", "status_capturing",
                 "status_capturing_fmt", "err_small_region", "err_no_scroll")},
         }
+        if IS_MAC:
+            opts["strings"]["err_no_scroll"] = self.t("err_no_scroll_mac")
         threading.Thread(target=self._worker, args=(region, opts),
                          daemon=True).start()
 
@@ -2886,11 +3108,15 @@ class App:
         """스크롤 없이 현재 화면을 한 번만 캡처(디스플레이/윈도우/영역/전체)."""
         try:
             time.sleep(0.2)
-            if hwnd:                       # 윈도우 캡처: 대상 창을 앞으로
-                ensure_foreground(hwnd)
-                time.sleep(0.35)
-            with mss.mss() as sct:
-                img = grab(sct, region)
+            img = None
+            if hwnd and IS_MAC:            # macOS: 창만 직접 캡처(가려져 있어도, 그림자 제외)
+                img = pm.grab_window(hwnd)
+            if img is None:
+                if hwnd:                   # 윈도우 캡처: 대상 창을 앞으로
+                    ensure_foreground(hwnd)
+                    time.sleep(0.35)
+                with screen_grabber() as sct:
+                    img = grab(sct, region)
             path = save_png(img, self.save_dir.get())
             self.root.after(0, lambda: self._done(path))
         except Exception as e:
@@ -2996,7 +3222,7 @@ class App:
         btns = tk.Frame(inner, bg=C["white"])
         btns.pack(side="right")
         obtn = RoundButton(btns, text=self.t("btn_open_item"), kind="secondary",
-                           min_width=52, command=lambda p=path: os.startfile(p))
+                           min_width=52, command=lambda p=path: open_path(p))
         obtn.pack(anchor="e")
         copy_btn = RoundButton(btns, text=self.t("btn_copy"), kind="secondary",
                                min_width=52)
@@ -3046,7 +3272,7 @@ class App:
         for wd in (row, inner, thumb, info, l1, l2, l3):
             wd.bind("<Enter>", lambda e: set_bg(C["list_hover"]))
             wd.bind("<Leave>", lambda e: set_bg(C["white"]))
-            wd.bind("<Double-Button-1>", lambda e, p=path: os.startfile(p))
+            wd.bind("<Double-Button-1>", lambda e, p=path: open_path(p))
 
     def _fit_name(self, label, fullname):
         """이름 표시 폭에 맞춰, 넘칠 때만 확장자(.png)는 남기고 … 로 줄임.
@@ -3162,6 +3388,12 @@ class App:
 
 def copy_image_to_clipboard(path):
     """PNG 파일을 클립보드에 이미지(CF_DIB)로 복사."""
+    if IS_MAC:
+        try:
+            with open(path, "rb") as f:
+                return pm.copy_png_bytes(f.read())
+        except Exception:
+            return False
     try:
         img = Image.open(path).convert("RGB")
         out = io.BytesIO()
@@ -3182,6 +3414,9 @@ def copy_image_to_clipboard(path):
 def copy_ndarray_to_clipboard(img_bgr):
     """메모리의 이미지(BGR ndarray)를 클립보드에 이미지(CF_DIB)로 복사.
     분할 저장 시 파일로 나뉜 원본 '전체'를 그대로 복사하는 데 사용."""
+    if IS_MAC:
+        ok, buf = cv2.imencode(".png", img_bgr)
+        return bool(ok) and pm.copy_png_bytes(buf.tobytes())
     try:
         rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
         out = io.BytesIO()
@@ -3199,5 +3434,57 @@ def copy_ndarray_to_clipboard(img_bgr):
         return False
 
 
+def _selftest(app, out_path):
+    """빌드 검증용(CI): UI 생성 후 플랫폼 기능을 점검하고 결과를 기록한 뒤 종료.
+    SCROLLCAPTURE_SELFTEST=<결과 파일 경로> 환경변수로 실행."""
+    lines, failed = [], False
+
+    def check(name, fn):
+        nonlocal failed
+        try:
+            lines.append(f"OK   {name}: {fn()}")
+        except Exception as e:
+            failed = True
+            lines.append(f"FAIL {name}: {type(e).__name__}: {e}")
+
+    check("platform", lambda: sys.platform)
+    check("monitors", get_monitors)
+    check("primary", primary_screen)
+    check("virtual", virtual_screen)
+
+    def _grab():
+        x, y, w, h = primary_screen()
+        with screen_grabber() as sct:
+            img = grab(sct, (x + 10, y + 40, 200, 120))
+        return img.shape
+
+    check("grab", _grab)
+    check("icons", lambda: len(app._icon_imgs))
+    check("list_rows", lambda: len(app.list_inner.winfo_children()))
+    check("hotkeys", lambda: {m: v[2] for m, v in app.hotkeys.items() if v})
+    if IS_MAC:
+        check("hotkeys_registered", lambda: len(app.hotkeys_mgr._refs))
+        check("permissions(screen,ax)", pm.permissions_status)
+        check("window_at_center", lambda: pm.window_at_point(
+            primary_screen()[2] // 2, primary_screen()[3] // 2))
+        check("clipboard", lambda: copy_ndarray_to_clipboard(
+            np.full((20, 30, 3), 200, np.uint8)))
+    try:
+        with open(out_path, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines) + "\n")
+    except Exception:
+        pass
+    print("\n".join(lines), flush=True)
+    app.hotkeys_mgr.stop()
+    app.root.destroy()
+    os._exit(1 if failed else 0)
+
+
 if __name__ == "__main__":
-    App().run()
+    _st = os.environ.get("SCROLLCAPTURE_SELFTEST")
+    if _st:
+        os.environ["SCROLLCAPTURE_NO_PERM_PROMPT"] = "1"
+    app = App()
+    if _st:
+        app.root.after(2500, lambda: _selftest(app, _st))
+    app.run()

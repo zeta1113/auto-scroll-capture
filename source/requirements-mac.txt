@@ -1,0 +1,9 @@
+# macOS 빌드용(최소 지원: macOS 12 Monterey).
+# CI 는 macOS 12 와 호환되는 휠만 받도록 --platform macosx_12_0_<arch> 로 내려받는다.
+numpy>=1.26,<2.3
+opencv-python-headless==4.10.0.84
+pillow>=10.4
+pyobjc-core>=10.3
+pyobjc-framework-Quartz>=10.3
+pyobjc-framework-Cocoa>=10.3
+pyobjc-framework-ApplicationServices>=10.3

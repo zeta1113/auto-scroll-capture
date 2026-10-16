@@ -10,14 +10,16 @@ check_latest(repo, current_version) -> dict 또는 None
     'tag': 'v1.2.0',
     'version': (1,2,0),
     'newer': True/False,
-    'download_url': 설치 파일(.exe) 직접 다운로드 URL(있으면),
+    'download_url': 설치 파일(.exe / macOS .dmg) 직접 다운로드 URL(있으면),
     'html_url': 릴리즈 페이지 URL,
     'notes': 릴리즈 노트(본문),
   }
 """
 
 import re
+import sys
 import json
+import platform
 import urllib.request
 
 
@@ -28,6 +30,14 @@ def parse_version(s):
     while len(nums) < 3:
         nums.append(0)
     return tuple(nums)
+
+
+def _asset_matches(name):
+    """현재 OS/CPU 에 맞는 설치 파일인지 (Windows: .exe, macOS: 아키텍처별 .dmg)."""
+    if sys.platform == "darwin":
+        arch = platform.machine().lower()          # arm64 / x86_64
+        return name.endswith(".dmg") and arch in name
+    return name.endswith(".exe")
 
 
 def check_latest(repo, current_version, timeout=6):
@@ -51,7 +61,7 @@ def check_latest(repo, current_version, timeout=6):
     download_url = None
     for a in data.get("assets", []) or []:
         name = (a.get("name") or "").lower()
-        if name.endswith(".exe"):
+        if _asset_matches(name):
             download_url = a.get("browser_download_url")
             break
 

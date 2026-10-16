@@ -1,0 +1,104 @@
+# macOS 빌드 — Apple Silicon(arm64) / Intel(x86_64) DMG 생성
+# 최소 지원: macOS 12 Monterey (13 Ventura 이상 포함)
+#  - 릴리스가 게시되면 자동 실행 → 해당 릴리스에 DMG 첨부
+#  - Actions 탭에서 수동 실행(workflow_dispatch) 가능 (tag 입력 시 그 릴리스에 첨부)
+name: macOS build
+
+on:
+  release:
+    types: [published]
+  push:
+    branches: [main, mac]
+    paths:
+      - "source/**"
+      - "tools/**"
+      - "build_mac.sh"
+      - ".github/workflows/build-mac.yml"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "DMG 를 첨부할 릴리스 태그 (비우면 아티팩트만 생성)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: macOS ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: arm64
+          - runner: macos-15-intel
+            arch: x86_64
+    env:
+      PY_VER: "3.12.8"
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name || inputs.tag || github.ref }}
+
+      # python.org 공식 universal2 빌드(macOS 10.13+ 호환, Tcl/Tk 포함)
+      - name: Install Python ${{ env.PY_VER }} (python.org)
+        run: |
+          curl -fsSL -o py.pkg "https://www.python.org/ftp/python/${PY_VER}/python-${PY_VER}-macos11.pkg"
+          sudo installer -pkg py.pkg -target /
+          /Library/Frameworks/Python.framework/Versions/3.12/bin/python3.12 -m venv .venv
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+
+      # macOS 12 와 호환되는 휠만 내려받아 설치(러너 OS 용 최신 휠이 섞이지 않도록)
+      - name: Install dependencies (macOS 12 compatible wheels)
+        run: |
+          python -m pip install -U pip
+          python -m pip download --only-binary=:all: \
+            --platform "macosx_12_0_${{ matrix.arch }}" \
+            --python-version 3.12 --implementation cp \
+            -d wheels -r source/requirements-mac.txt
+          python -m pip install --no-index --find-links wheels -r source/requirements-mac.txt
+          python -m pip install pyinstaller
+          python -c "import tkinter, numpy, cv2, PIL, Quartz, AppKit, ApplicationServices; print('Tk', tkinter.TkVersion, '| numpy', numpy.__version__, '| cv2', cv2.__version__)"
+
+      - name: Engine test (scroll capture on a test window)
+        continue-on-error: true
+        timeout-minutes: 6
+        run: |
+          python tools/engine_test.py "engine_test_${{ matrix.arch }}.png" 2>&1 | tee engine_${{ matrix.arch }}.txt
+          echo "::notice title=engine ${{ matrix.arch }}::$(grep -E 'result:|PASS|FAIL' engine_${{ matrix.arch }}.txt | tr '\n' ' ')"
+
+      - name: Build app + DMG
+        run: PYTHON=python bash build_mac.sh
+
+      - name: Check minimum macOS version (Monterey 12.0)
+        run: |
+          python tools/check_minos.py build/mac/dist/ScrollCapture.app 12.0 | tee minos.txt
+          echo "::notice title=minos ${{ matrix.arch }}::$(head -1 minos.txt)"
+
+      - name: Self-test bundled app
+        timeout-minutes: 3
+        run: |
+          OUT="$PWD/selftest_${{ matrix.arch }}.txt"
+          SCROLLCAPTURE_SELFTEST="$OUT" build/mac/dist/ScrollCapture.app/Contents/MacOS/ScrollCapture
+          while IFS= read -r line; do echo "::notice title=selftest ${{ matrix.arch }}::$line"; done < "$OUT"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ScrollCapture-mac-${{ matrix.arch }}
+          path: |
+            release/*.dmg
+            selftest_*.txt
+            engine_*.txt
+            engine_test_*.png
+          if-no-files-found: warn
+
+      - name: Attach DMG to release
+        if: env.TAG != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$TAG" release/*.dmg --clobber
