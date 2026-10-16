@@ -1,6 +1,6 @@
 # 스크롤 자동 캡처 (Scroll Auto Capture)
 
-Windows 11에서 **스크롤되는 영역의 전체 내용**을 자동으로 스크롤하며 캡처해
+Windows 11 / **macOS(12 Monterey 이상)**에서 **스크롤되는 영역의 전체 내용**을 자동으로 스크롤하며 캡처해
 한 장의 PNG로 저장하는 유틸리티입니다.
 브라우저뿐 아니라 **Claude 데스크탑의 Fin AI 대화창** 같은 네이티브 앱의
 긴 대화 내용도 통째로 캡처할 수 있습니다.
@@ -69,9 +69,12 @@ auto-capture/
 ## 릴리즈 정보
 
 - 최신 빌드 및 전체 이력은 [`release/RELEASES.md`](release/RELEASES.md) 참고.
-- 📥 **다운로드**: [최신 릴리스(v1.4.19)](https://github.com/zeta1113/auto-scroll-capture/releases/latest) 에서 `ScrollCapture_Setup_v1.4.19.exe`
+- 📥 **다운로드**: [최신 릴리스(v1.5.0)](https://github.com/zeta1113/auto-scroll-capture/releases/latest)
+  - Windows: `ScrollCapture_Setup_v1.5.0.exe`
+  - macOS: `ScrollCapture_mac_arm64_v1.5.0.dmg`(Apple Silicon) / `ScrollCapture_mac_x86_64_v1.5.0.dmg`(Intel)
 - 🔔 자동 업데이트: `GITHUB_REPO = "zeta1113/auto-scroll-capture"` 설정됨 — 새 릴리스가 올라오면 앱이 자동 감지해 알림
-- 현재 최신: **v1.4.19** — `release/ScrollCapture_Setup_v1.4.19.exe` (정식 설치 파일, 코드 서명됨)
+- 현재 최신: **v1.5.0** — Windows `ScrollCapture_Setup_v1.5.0.exe` + macOS DMG(arm64/x86_64)
+  - v1.5.0: **macOS 지원**(Monterey 12/Ventura 13 이상, Apple Silicon·Intel) — Quartz 화면 캡처(Retina 2배 해상도), 포인터 이동 없는 스크롤, Option+Shift+1~7 전역 단축키, 창 직접 캡처. GitHub Actions 로 DMG 자동 빌드·점검
   - v1.4.19: 캡처 파일 목록 각 항목에 [삭제] 버튼 추가(빨간 글자, 확인 후 삭제)
   - v1.4.18: 옵션 더보기↔숨기기 토글 표시 수정 · 높이 분할 기본값 4000px · 파일 목록 스크롤바 표시(tk.Scrollbar)
   - v1.4.17(UI): 영역 제목을 박스 밖(위)으로 분리 · 새로고침 버튼을 열기 버튼과 오른쪽 정렬

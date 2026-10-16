@@ -1,13 +1,14 @@
 # macOS 빌드 — Apple Silicon(arm64) / Intel(x86_64) DMG 생성
 # 최소 지원: macOS 12 Monterey (13 Ventura 이상 포함)
-#  - 릴리스가 게시되면 자동 실행 → 해당 릴리스에 DMG 첨부
+#  - v* 태그를 push 하면 자동 실행 → 그 태그의 릴리스(없으면 '초안' 생성)에 DMG 첨부
+#    (Windows 설치 파일을 함께 올린 뒤 초안을 게시)
+#  - main/mac 브랜치 push 시 빌드·점검만(아티팩트)
 #  - Actions 탭에서 수동 실행(workflow_dispatch) 가능 (tag 입력 시 그 릴리스에 첨부)
 name: macOS build
 
 on:
-  release:
-    types: [published]
   push:
+    tags: ["v*"]
     branches: [main, mac]
     paths:
       - "source/**"
@@ -24,9 +25,31 @@ on:
 permissions:
   contents: write
 
+env:
+  TAG: ${{ github.ref_type == 'tag' && github.ref_name || inputs.tag }}
+
 jobs:
+  release:
+    name: Prepare release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create draft release (if missing)
+        if: env.TAG != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "release $TAG exists"
+          else
+            NOTES=".github/release-notes/$TAG.md"
+            [ -f "$NOTES" ] || { echo "$TAG" > /tmp/notes.md; NOTES=/tmp/notes.md; }
+            gh release create "$TAG" --draft --title "$TAG" --notes-file "$NOTES"
+          fi
+
   build:
     name: macOS ${{ matrix.arch }}
+    needs: release
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -38,11 +61,10 @@ jobs:
             arch: x86_64
     env:
       PY_VER: "3.12.8"
-      TAG: ${{ github.event.release.tag_name || inputs.tag }}
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.release.tag_name || inputs.tag || github.ref }}
+          ref: ${{ env.TAG || github.ref }}
 
       # python.org 공식 universal2 빌드(macOS 10.13+ 호환, Tcl/Tk 포함)
       - name: Install Python ${{ env.PY_VER }} (python.org)
