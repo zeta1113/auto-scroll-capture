@@ -1625,6 +1625,13 @@ def save_png_split(img, out_dir, split_h):
 # ==================================================================
 # 영역 선택 오버레이
 # ==================================================================
+# 지금 열려 있는 선택 화면의 '취소' 함수. 선택 중 Esc 를 전역 단축키로 받아 호출한다
+# (macOS 는 테두리 없는 Tk 창이 키 입력을 받지 못해 Esc 가 전달되지 않음).
+_ACTIVE_OVERLAY = [None]
+# 자체 점검(CI)용 마지막 선택 화면 정보
+LAST_OVERLAY_INFO = {}
+
+
 class RegionSelector:
     """드래그로 영역 선택. multi=True면 전체 가상 화면(멀티 모니터) 위에서 선택.
     Windows: 가상 화면 전체를 덮는 오버레이 1개, 실제 좌표는 win32 커서 좌표(DPI 안전).
@@ -1642,6 +1649,9 @@ class RegionSelector:
         self._start_root = None
         self._sel = None
         self._pending = None
+        self._job = None
+        self._closed = False
+        LAST_OVERLAY_INFO.clear()
         if IS_MAC:
             areas = get_monitors() if multi else [primary_screen()]
         else:
@@ -1679,28 +1689,48 @@ class RegionSelector:
                           cv.create_line(0, 0, 0, 0, fill="black", width=3),
                           cv.create_line(0, 0, 0, 0, fill="white", width=1),
                           cv.create_line(0, 0, 0, 0, fill="white", width=1)]
-            cv.bind("<Motion>", self._hover)
-            cv.bind("<ButtonPress-1>", self._down)
-            cv.bind("<B1-Motion>", self._move)
-            cv.bind("<ButtonRelease-1>", self._up)
-            # 취소: Esc (+ macOS 는 테두리 없는 창이 키 입력을 못 받을 수 있어 우클릭도)
+            if not IS_MAC:
+                # Windows: Tk 마우스 이벤트 사용
+                cv.bind("<Motion>", self._hover)
+                cv.bind("<ButtonPress-1>", self._down)
+                cv.bind("<B1-Motion>", self._move)
+                cv.bind("<ButtonRelease-1>", self._up)
+            # 취소: Esc (전역 단축키로도 받음 — _ACTIVE_OVERLAY)
             top.bind("<Escape>", lambda e: self._cancel())
-            if IS_MAC:
-                cv.bind("<Button-2>", lambda e: self._cancel())
-                cv.bind("<Button-3>", lambda e: self._cancel())
             self.tops.append(top)
             self.views.append(v)
         self.top = self.tops[0]
         try:
-            px, py = self.top.winfo_pointerxy()
+            px, py = (pm.mouse_pos() if IS_MAC else self.top.winfo_pointerxy())
             self._draw_cross(px, py)
         except Exception:
             pass
         self.top.focus_force()
-        self.top.grab_set()
-        if len(self.tops) > 1:   # 다른 모니터의 오버레이도 클릭을 받도록 전역 grab 해제
-            self.top.grab_release()
-        master.wait_window(self.top)
+        if IS_MAC:
+            # macOS: 테두리 없는 Tk 창은 마우스 이동/키 이벤트를 제대로 못 받으므로
+            #  - 창을 Dock·메뉴 막대 위 레벨로 올리고(화면 전체 덮기)
+            #  - 마우스 위치·버튼 상태를 직접 읽어(폴링) 십자/드래그를 처리한다.
+            for t in self.tops:
+                t.update()
+            used, levels = [], []
+            for area in areas:
+                w = pm.overlay_window(area, exclude=used)
+                if w is not None:
+                    used.append(w)
+                    levels.append(int(w.level()))
+            LAST_OVERLAY_INFO["levels"] = levels
+            self._prev_btn = pm.left_button_down()
+            self._job = self.top.after(15, self._mac_poll)
+        else:
+            self.top.grab_set()
+            if len(self.tops) > 1:   # 다른 모니터의 오버레이도 클릭을 받도록 전역 grab 해제
+                self.top.grab_release()
+        _ACTIVE_OVERLAY[0] = self._cancel
+        try:
+            master.wait_window(self.top)
+        finally:
+            if _ACTIVE_OVERLAY[0] == self._cancel:
+                _ACTIVE_OVERLAY[0] = None
 
     # ---------- 배경(어두운 화면 / 밝은 원본) ----------
     def _backdrop(self, top, x, y, w, h, frozen=None):
@@ -1726,6 +1756,7 @@ class RegionSelector:
         return win32gui.GetCursorPos()
 
     def _draw_cross(self, gx, gy):
+        LAST_OVERLAY_INFO["cross"] = (int(gx), int(gy))
         L = self.CROSS
         for v in self.views:
             x, y = gx - v["ox"], gy - v["oy"]
@@ -1776,25 +1807,58 @@ class RegionSelector:
             self._pending = self.top.after_idle(self._draw_sel)
 
     # ---------- 마우스 ----------
+    def _mac_poll(self):
+        """macOS: 마우스 위치/버튼을 직접 읽어 십자·드래그 처리(15ms 간격)."""
+        if self._closed:
+            return
+        try:
+            x, y = pm.mouse_pos()
+            if pm.right_button_down():          # 우클릭 = 취소
+                self._cancel()
+                return
+            btn = pm.left_button_down()
+            if btn and not self._prev_btn:
+                self._down_at(x, y, (x, y))
+            elif btn and self._start_root is not None:
+                self._move_at(x, y)
+            elif not btn and self._prev_btn and self._start_scr is not None:
+                self._up_at((x, y))
+                return
+            else:
+                self._draw_cross(x, y)
+            self._prev_btn = btn
+        except Exception:
+            pass
+        if not self._closed:
+            self._job = self.top.after(15, self._mac_poll)
+
     def _hover(self, e):
         self._draw_cross(e.x_root, e.y_root)
 
     def _down(self, e):
-        self._start_scr = self._pointer(e)
-        self._start_root = (e.x_root, e.y_root)
-        self._sel = (e.x_root, e.y_root, e.x_root, e.y_root)
-        self._draw_cross(e.x_root, e.y_root)
+        self._down_at(e.x_root, e.y_root, self._pointer(e))
+
+    def _down_at(self, gx, gy, scr):
+        self._start_scr = scr
+        self._start_root = (gx, gy)
+        self._sel = (gx, gy, gx, gy)
+        self._draw_cross(gx, gy)
 
     def _move(self, e):
-        self._draw_cross(e.x_root, e.y_root)
+        self._move_at(e.x_root, e.y_root)
+
+    def _move_at(self, gx, gy):
+        self._draw_cross(gx, gy)
         if self._start_root is not None:
-            self._sel = (self._start_root[0], self._start_root[1], e.x_root, e.y_root)
+            self._sel = (self._start_root[0], self._start_root[1], gx, gy)
             self._schedule_sel()
 
     def _up(self, e):
+        self._up_at(self._pointer(e))
+
+    def _up_at(self, end):
         if self._start_scr is None:
             return
-        end = self._pointer(e)
         x1, y1 = self._start_scr
         x2, y2 = end
         x, y = int(min(x1, x2)), int(min(y1, y2))
@@ -1807,6 +1871,14 @@ class RegionSelector:
         self._close()
 
     def _close(self):
+        if self._closed:
+            return
+        self._closed = True
+        if self._job:
+            try:
+                self.top.after_cancel(self._job)
+            except Exception:
+                pass
         for t in self.tops[1:] + self.tops[:1]:   # 대기 중인 첫 창은 마지막에
             try:
                 t.destroy()
@@ -1832,14 +1904,21 @@ class MonitorPicker:
         self.lbl = tk.Label(self.top, text=guide, bg="#1e6fff", fg="white",
                             font=(UI_FONT, 16, "bold"))
         self.lbl.place(relx=0.5, rely=0.5, anchor="center")
-        self.top.bind("<Button-1>", lambda e: self._pick())
         self.top.bind("<Escape>", lambda e: self._close(None))
+        self._nswin = None
+        self._closed = False
         if IS_MAC:
-            self.top.bind("<Button-2>", lambda e: self._close(None))
-            self.top.bind("<Button-3>", lambda e: self._close(None))
+            # macOS: 클릭도 직접 읽음(폴링), 오버레이는 Dock·메뉴 막대 위 레벨
+            self._prev_btn = pm.left_button_down()
+        else:
+            self.top.bind("<Button-1>", lambda e: self._pick())
         self._poll()
         self.top.focus_force()
-        master.wait_window(self.top)
+        _ACTIVE_OVERLAY[0] = lambda: self._close(None)
+        try:
+            master.wait_window(self.top)
+        finally:
+            _ACTIVE_OVERLAY[0] = None
 
     def _mon_at(self, x, y):
         for r in self.monitors:
@@ -1849,21 +1928,43 @@ class MonitorPicker:
         return None
 
     def _poll(self):
+        if self._closed:
+            return
         try:
-            x, y = (self.top.winfo_pointerxy() if IS_MAC
-                    else win32gui.GetCursorPos())
+            x, y = (pm.mouse_pos() if IS_MAC else win32gui.GetCursorPos())
         except Exception:
             x, y = 0, 0
         r = self._mon_at(x, y)
         if r and r != self.cur:
             self.cur = r
             self.top.geometry(f"{r[2]}x{r[3]}+{r[0]}+{r[1]}")
-        self._job = self.top.after(60, self._poll)
+            if IS_MAC:
+                try:
+                    self.top.update()
+                    if self._nswin is None:
+                        self._nswin = pm.overlay_window(r)
+                    else:
+                        pm.place_overlay(self._nswin, r)
+                except Exception:
+                    pass
+        if IS_MAC:
+            if pm.right_button_down():
+                self._close(None)
+                return
+            btn = pm.left_button_down()
+            if not btn and self._prev_btn and self.cur:   # 클릭(뗄 때) = 선택
+                self._close(self.cur)
+                return
+            self._prev_btn = btn
+        self._job = self.top.after(30 if IS_MAC else 60, self._poll)
 
     def _pick(self):
         self._close(self.cur)
 
     def _close(self, result):
+        if self._closed:
+            return
+        self._closed = True
         self.result = result
         if self._job:
             try:
@@ -1912,7 +2013,11 @@ class WindowPicker:
         self._prev_btn = self._left_down()
         self.top.after(60, self._register_own)
         self._job = self.top.after(120, self._poll)
-        master.wait_window(self.top)
+        _ACTIVE_OVERLAY[0] = lambda: self._close(None)
+        try:
+            master.wait_window(self.top)
+        finally:
+            _ACTIVE_OVERLAY[0] = None
 
     @staticmethod
     def _left_down():
@@ -3095,7 +3200,11 @@ class App:
 
     def _on_hotkey(self, mode):
         if mode == CANCEL_MODE:
-            self._panel_cancel()
+            ov = _ACTIVE_OVERLAY[0]
+            if ov is not None:          # 영역/모니터/창 선택 화면 취소
+                ov()
+            else:                       # 스크롤 캡처 취소
+                self._panel_cancel()
         elif mode == SELFTEST_MODE:
             cb = getattr(self, "_selftest_hook", None)
             if cb:
@@ -3483,6 +3592,27 @@ class App:
         finally:
             self._starting = False
 
+    def _pick_target(self, mode, frozen):
+        """캡처 대상 선택(영역/모니터/창/전체) → (region, hwnd)."""
+        region = None
+        hwnd = None
+        if mode in ("scroll_region", "shot_region"):
+            region = RegionSelector(self.root, multi=self.opt_multi.get(),
+                                    guide=self.t("guide_region"),
+                                    frozen=frozen).result
+        elif mode in ("scroll_display", "shot_display"):
+            if self.opt_multi.get():
+                region = MonitorPicker(self.root,
+                                       guide=self.t("guide_monitor")).result
+            else:
+                region = primary_screen()
+        elif mode in ("scroll_window", "shot_window"):
+            wp = WindowPicker(self.root, guide=self.t("guide_window"))
+            region, hwnd = wp.result, wp.hwnd
+        elif mode == "shot_all":
+            region = virtual_screen()
+        return region, hwnd
+
     def _start_capture(self, mode):
         self._hidden = self.opt_hide.get()
         # 캡처를 누른 '그 순간'의 화면을 가장 먼저 고정한다(마우스 오버 메뉴·영상 프레임 유지).
@@ -3506,24 +3636,12 @@ class App:
             self.root.update()
         time.sleep(0.15)
 
-        # ---- 대상 영역 선택 ----
-        region = None
-        hwnd = None
-        if mode in ("scroll_region", "shot_region"):
-            region = RegionSelector(self.root, multi=self.opt_multi.get(),
-                                    guide=self.t("guide_region"),
-                                    frozen=frozen).result
-        elif mode in ("scroll_display", "shot_display"):
-            if self.opt_multi.get():
-                region = MonitorPicker(self.root,
-                                       guide=self.t("guide_monitor")).result
-            else:
-                region = primary_screen()
-        elif mode in ("scroll_window", "shot_window"):
-            wp = WindowPicker(self.root, guide=self.t("guide_window"))
-            region, hwnd = wp.result, wp.hwnd
-        elif mode == "shot_all":
-            region = virtual_screen()
+        # ---- 대상 영역 선택 ----  (선택 중 Esc 는 전역 키로도 받아 취소)
+        self._apply_hotkeys(capturing=True)
+        try:
+            region, hwnd = self._pick_target(mode, frozen)
+        finally:
+            self._apply_hotkeys()
 
         if not region:
             if self._hidden:
@@ -4102,6 +4220,94 @@ def _selftest(app, out_path):
     def finish():
         check("hotkey_fired(F19)", lambda: bool(got) or (_ for _ in ()).throw(
             RuntimeError("hotkey not received")))
+        app.root.after(200, region_drag_test)
+
+    # ---- 영역 지정: 실제 마우스 이동·드래그 → 저장 파일 크기 확인 ----
+    import tempfile
+    import glob
+    tmp = tempfile.mkdtemp(prefix="sc_selftest_")
+    app.save_dir.set(tmp)
+    app.opt_auto_copy.set(False)
+    app.opt_multi.set(False)
+    app.opt_hide.set(True)
+    px, py, _pw, _ph = primary_screen()
+    X1, Y1, X2, Y2 = px + 200, py + 200, px + 500, py + 400
+
+    def mouse(kind, x, y):
+        if IS_MAC:
+            pm.post_mouse(kind, x, y)
+            return
+        win32api.SetCursorPos((x, y))
+        if kind == "down":
+            win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
+        elif kind == "up":
+            win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
+
+    def press_esc():
+        if IS_MAC:
+            pm.post_key(53)
+        else:
+            win32api.keybd_event(0x1B, 0, 0, 0)
+            time.sleep(0.03)
+            win32api.keybd_event(0x1B, 0, win32con.KEYEVENTF_KEYUP, 0)
+
+    def force_close():          # 선택 화면이 반응하지 않을 때의 안전장치
+        lines.append("FAIL overlay: did not respond (forced close)")
+        if _ACTIVE_OVERLAY[0]:
+            _ACTIVE_OVERLAY[0]()
+
+    def region_drag_test():
+        def drive():
+            time.sleep(2.0)
+            mouse("move", X1, Y1)
+            time.sleep(0.3)
+            mouse("down", X1, Y1)
+            time.sleep(0.2)
+            for i in range(1, 11):
+                mouse("drag", X1 + (X2 - X1) * i // 10, Y1 + (Y2 - Y1) * i // 10)
+                time.sleep(0.05)
+            time.sleep(0.3)
+            mouse("up", X2, Y2)
+
+        threading.Thread(target=drive, daemon=True).start()
+        guard = app.root.after(12000, force_close)
+        app.start_capture("shot_region")          # 선택이 끝날 때까지 대기
+        app.root.after_cancel(guard)
+        lines.append(f"INFO overlay: {dict(LAST_OVERLAY_INFO)}")
+        wait_file()
+
+    def wait_file(n=0):
+        files = glob.glob(os.path.join(tmp, "*.png"))
+        if not files and n < 50:
+            app.root.after(200, lambda: wait_file(n + 1))
+            return
+
+        def size():
+            if not files:
+                raise RuntimeError("no file saved")
+            with Image.open(files[0]) as im:
+                w, h = im.size
+            sc = max(1, round(w / float(X2 - X1)))
+            if abs(w - (X2 - X1) * sc) > 2 * sc or abs(h - (Y2 - Y1) * sc) > 2 * sc:
+                raise RuntimeError(f"unexpected size {w}x{h}")
+            return f"{w}x{h} (scale {sc})"
+
+        check("region_drag_capture", size)
+        app.root.after(500, esc_test)
+
+    # ---- 영역 지정 중 Esc → 취소(파일 없음) ----
+    def esc_test():
+        n_before = len(glob.glob(os.path.join(tmp, "*.png")))
+        threading.Thread(target=lambda: (time.sleep(2.0), press_esc()),
+                         daemon=True).start()
+        guard = app.root.after(10000, force_close)
+        t0 = time.time()
+        app.start_capture("shot_region")
+        app.root.after_cancel(guard)
+        dt = time.time() - t0
+        n_after = len(glob.glob(os.path.join(tmp, "*.png")))
+        check("esc_cancel", lambda: f"{dt:.1f}s" if (n_after == n_before and dt < 9)
+              else (_ for _ in ()).throw(RuntimeError(f"not cancelled ({dt:.1f}s)")))
         _selftest_finish(app, out_path, lines, failed)
 
     app.root.after(300, send_key)

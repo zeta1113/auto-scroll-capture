@@ -244,6 +244,66 @@ def set_capture_excluded(excluded):
         pass
 
 
+def _main_height():
+    return float(Quartz.CGDisplayBounds(Quartz.CGMainDisplayID()).size.height)
+
+
+OVERLAY_LEVEL = 1000      # NSScreenSaverWindowLevel — Dock(20)·메뉴 막대(24)보다 위
+
+
+def place_overlay(win, rect, level=OVERLAY_LEVEL):
+    """오버레이 NSWindow 를 Dock·메뉴 막대 위 레벨로 올리고 화면 좌표(rect)에 정확히 고정."""
+    from Foundation import NSMakeRect
+    x, y, w, h = rect
+    win.setLevel_(level)
+    win.setCollectionBehavior_((1 << 0) | (1 << 8))   # 모든 Space + 전체화면 보조
+    win.setFrame_display_(NSMakeRect(x, _main_height() - (y + h), w, h), True)
+    win.orderFrontRegardless()
+    try:
+        win.makeKeyWindow()
+    except Exception:
+        pass
+    return int(win.level())
+
+
+def overlay_window(rect, exclude=()):
+    """Tk 로 만든 테두리 없는 오버레이 창의 NSWindow 를 찾아 place_overlay 적용.
+    (Tk 는 창 번호를 주지 않으므로 크기·x 위치로 찾는다. 메뉴 막대 때문에 높이가
+    줄어 있을 수 있어 높이는 여유 있게 비교.) 못 찾으면 None."""
+    x, y, w, h = rect
+    best = None
+    for win in NSApplication.sharedApplication().windows():
+        try:
+            if win in exclude or not win.isVisible():
+                continue
+            f = win.frame()
+            if (abs(f.size.width - w) <= 2 and abs(f.origin.x - x) <= 2
+                    and abs(f.size.height - h) <= 60):
+                best = win
+        except Exception:
+            continue
+    if best is not None:
+        place_overlay(best, rect)
+    return best
+
+
+def mouse_pos():
+    """현재 마우스 위치(화면 좌표, 주 모니터 좌상단 원점). 권한 불필요."""
+    x, y = _cursor_pos()
+    return int(round(x)), int(round(y))
+
+
+def post_mouse(kind, x, y):
+    """자체 점검용 마우스 이벤트 전송: kind = move / down / drag / up."""
+    t = {"move": Quartz.kCGEventMouseMoved,
+         "down": Quartz.kCGEventLeftMouseDown,
+         "drag": Quartz.kCGEventLeftMouseDragged,
+         "up": Quartz.kCGEventLeftMouseUp}[kind]
+    ev = Quartz.CGEventCreateMouseEvent(None, t, Quartz.CGPointMake(x, y),
+                                        Quartz.kCGMouseButtonLeft)
+    Quartz.CGEventPost(Quartz.kCGHIDEventTap, ev)
+
+
 def activate_self():
     """이 앱을 앞으로(단축키로 백그라운드에서 호출됐을 때 오버레이가 클릭을 받도록)."""
     try:
