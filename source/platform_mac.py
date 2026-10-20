@@ -324,6 +324,14 @@ def key_page(ref, down):
         time.sleep(0.02)
 
 
+def post_key(kc):
+    """시스템 전체로 키 입력(누름/뗌) 전송 — 자체 점검에서 전역 단축키 확인용."""
+    for is_down in (True, False):
+        Quartz.CGEventPost(Quartz.kCGHIDEventTap,
+                           Quartz.CGEventCreateKeyboardEvent(None, kc, is_down))
+        time.sleep(0.03)
+
+
 def apply_scroll(ref, cx, cy, method, down, notches):
     try:
         if method == "send":

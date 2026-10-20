@@ -19,6 +19,7 @@ import sys
 import json
 import time
 import threading
+import collections
 import webbrowser
 import ctypes
 from datetime import datetime
@@ -155,6 +156,9 @@ HOTKEY_MODES = ["shot_region", "shot_window", "shot_display", "shot_all",
 # 캡처 중 전역 '취소' 키(Esc): (수정자 없음, Windows VK_ESCAPE / macOS 키코드 53)
 CANCEL_MODE = "__cancel"
 ESC_HOTKEY = (0, 53) if IS_MAC else (0, 0x1B)
+# 자체 점검(CI)용: 실제 키 입력(F19)이 단축키로 전달되는지 확인
+SELFTEST_MODE = "__selftest"
+SELFTEST_HOTKEY = (0, 80) if IS_MAC else (0, 0x82)
 
 # 오버레이/툴팁 등 고정 폰트
 UI_FONT = "Apple SD Gothic Neo" if IS_MAC else "맑은 고딕"
@@ -2794,6 +2798,8 @@ class App:
         self._busy_overlay = None  # 저장 중 '진행중' 오버레이
 
         self.hotkeys = self._load_hotkeys()
+        self._hk_queue = collections.deque()
+        self._starting = False
         self.hotkeys_mgr = HotkeyManager(self._hotkey_fire)
 
         self._build_ui()
@@ -2802,6 +2808,8 @@ class App:
         self.refresh_list()
         self._apply_hotkeys()
         self._auto_check_update()
+        if IS_MAC:
+            self.root.after(50, self._pump_hotkeys)
         if IS_MAC and not os.environ.get("SCROLLCAPTURE_NO_PERM_PROMPT"):
             self.root.after(600, self._check_mac_permissions)
 
@@ -3067,14 +3075,33 @@ class App:
             pass
 
     def _hotkey_fire(self, mode):
-        """단축키 스레드에서 호출 → 메인 스레드로 넘겨 캡처 시작."""
+        """단축키 수신 → 메인 루프에서 처리.
+        Windows: 단축키 스레드에서 호출 → root.after 로 메인 스레드에 넘김.
+        macOS  : Carbon 콜백은 Tk 이벤트 처리 '도중'에 불리므로 여기서 Tk 를 호출하면
+                 tkinter 내부 상태가 깨져 앱이 비정상 종료된다 → 큐에만 넣고 폴링으로 처리."""
+        if IS_MAC:
+            self._hk_queue.append(mode)
+            return
         try:
-            if mode == CANCEL_MODE:
-                self.root.after(0, self._panel_cancel)
-                return
-            self.root.after(0, lambda m=mode: self.start_capture(m))
+            self.root.after(0, lambda m=mode: self._on_hotkey(m))
         except Exception:
             pass
+
+    def _pump_hotkeys(self):
+        """(macOS) 단축키 큐를 50ms 마다 메인 루프에서 처리."""
+        self.root.after(50, self._pump_hotkeys)
+        while self._hk_queue:
+            self._on_hotkey(self._hk_queue.popleft())
+
+    def _on_hotkey(self, mode):
+        if mode == CANCEL_MODE:
+            self._panel_cancel()
+        elif mode == SELFTEST_MODE:
+            cb = getattr(self, "_selftest_hook", None)
+            if cb:
+                cb()
+        else:
+            self.start_capture(mode)
 
     def _open_hotkeys(self):
         # 편집 중에는 전역 단축키를 잠시 중지(입력하려는 조합이 캡처로 발동되는 것 방지)
@@ -3448,8 +3475,15 @@ class App:
         self.root.after(0, lambda: self._set_progress(pct))
 
     def start_capture(self, mode):
-        if self.busy:
+        if self.busy or self._starting:
             return
+        self._starting = True
+        try:
+            self._start_capture(mode)
+        finally:
+            self._starting = False
+
+    def _start_capture(self, mode):
         self._hidden = self.opt_hide.get()
         # 캡처를 누른 '그 순간'의 화면을 가장 먼저 고정한다(마우스 오버 메뉴·영상 프레임 유지).
         # 앱 창은 숨기면 지연이 생기므로, 찍는 순간에만 캡처에서 제외한다.
@@ -4006,6 +4040,49 @@ def _selftest(app, out_path):
             primary_screen()[2] // 2, primary_screen()[3] // 2))
         check("clipboard", lambda: copy_ndarray_to_clipboard(
             np.full((20, 30, 3), 200, np.uint8)))
+
+    # 실제 키(F19)를 보내 전역 단축키 → 메인 루프 처리까지 확인
+    # (예전 macOS 크래시: 단축키 콜백에서 Tk 호출 → 다음 after 콜백에서 abort)
+    got = []
+    app._selftest_hook = lambda: got.append(1)
+    try:
+        binds = {m: (v[0], v[1]) for m, v in app.hotkeys.items() if v}
+        binds[SELFTEST_MODE] = SELFTEST_HOTKEY
+        app.hotkeys_mgr.set_bindings(binds)
+    except Exception as e:
+        lines.append(f"FAIL hotkey_bind: {e}")
+        failed = True
+
+    def send_key():
+        try:
+            if IS_MAC:
+                pm.post_key(SELFTEST_HOTKEY[1])
+            else:
+                win32api.keybd_event(SELFTEST_HOTKEY[1], 0, 0, 0)
+                time.sleep(0.03)
+                win32api.keybd_event(SELFTEST_HOTKEY[1], 0,
+                                     win32con.KEYEVENTF_KEYUP, 0)
+        except Exception as e:
+            lines.append(f"FAIL hotkey_send: {e}")
+
+    def wait_key(n=0):
+        if not got and n < 40:
+            app.root.after(100, lambda: wait_key(n + 1))
+            return
+        # 단축키 처리 뒤에도 after 콜백이 정상 동작하는지(크래시 재현 지점)
+        app.root.after(10, lambda: app.root.after(10, finish))
+
+    def finish():
+        check("hotkey_fired(F19)", lambda: bool(got) or (_ for _ in ()).throw(
+            RuntimeError("hotkey not received")))
+        _selftest_finish(app, out_path, lines, failed)
+
+    app.root.after(300, send_key)
+    app.root.after(400, wait_key)
+
+
+def _selftest_finish(app, out_path, lines, failed):
+    failed = failed or any(ln.startswith("FAIL") for ln in lines)
     try:
         with open(out_path, "w", encoding="utf-8") as f:
             f.write("\n".join(lines) + "\n")
