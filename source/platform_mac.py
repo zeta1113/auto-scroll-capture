@@ -234,6 +234,16 @@ def ensure_foreground(ref):
     _ax_raise(ref)
 
 
+def set_capture_excluded(excluded):
+    """이 앱의 모든 창을 화면 캡처에서 제외/복원 (NSWindowSharingNone ↔ ReadOnly).
+    캡처 중 떠 있는 패널·메인 창이 결과 이미지에 찍히지 않게 한다."""
+    try:
+        for w in NSApplication.sharedApplication().windows():
+            w.setSharingType_(0 if excluded else 1)
+    except Exception:
+        pass
+
+
 def activate_self():
     """이 앱을 앞으로(단축키로 백그라운드에서 호출됐을 때 오버레이가 클릭을 받도록)."""
     try:

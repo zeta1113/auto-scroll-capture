@@ -122,6 +122,7 @@ DEFAULT_CFG = {
     "save_dir": "",
     "hotkeys": {},           # {mode: {"mods":int, "vk":int, "text":str}} (비면 기본값)
     "options_expanded": False,  # 옵션 영역 더보기 펼침 상태
+    "panel_pos": None,       # 캡처 중 떠 있는 패널 위치 [x, y] (끌어서 옮긴 위치 기억)
 }
 
 # 전역 단축키 기본값: mode -> (modifiers, virtual-key, 표시문자열)
@@ -150,6 +151,10 @@ if IS_MAC:
     }
 HOTKEY_MODES = ["shot_region", "shot_window", "shot_display", "shot_all",
                 "scroll_region", "scroll_window", "scroll_display"]
+
+# 캡처 중 전역 '취소' 키(Esc): (수정자 없음, Windows VK_ESCAPE / macOS 키코드 53)
+CANCEL_MODE = "__cancel"
+ESC_HOTKEY = (0, 53) if IS_MAC else (0, 0x1B)
 
 # 오버레이/툴팁 등 고정 폰트
 UI_FONT = "Apple SD Gothic Neo" if IS_MAC else "맑은 고딕"
@@ -330,6 +335,15 @@ TR = {
         "status_done_fmt": "완료: {name}",
         "status_done_split_fmt": "완료: {n}개 파일로 분할 저장됨",
         "status_cancelled": "취소되었습니다",
+        "panel_title": "스크롤 캡처 중",
+        "btn_stop": "■ 중지",
+        "btn_cancel_cap": "취소",
+        "panel_hint": "중지 = 여기까지 저장 · 취소(Esc) = 저장 안 함",
+        "status_stopping": "중지하는 중... 여기까지 저장합니다",
+        "status_cancelling": "취소하는 중...",
+        "status_stopped_early": "캡처를 시작하기 전에 중지되어 저장할 내용이 없습니다",
+        "status_stopped_fmt": "중지 — 여기까지 저장했습니다: {name}",
+        "status_stopped_split_fmt": "중지 — 여기까지 {n}개 파일로 나눠 저장했습니다",
         "status_error": "오류 / 안내",
         "guide_region": "캡처할 '스크롤 영역'을 드래그하세요   (ESC = 취소)",
         "guide_monitor": "캡처할 모니터로 마우스를 이동 후 클릭해 주세요.  (ESC = 취소)",
@@ -427,6 +441,15 @@ TR = {
         "status_done_fmt": "Done: {name}",
         "status_done_split_fmt": "Done: split into {n} files",
         "status_cancelled": "Cancelled",
+        "panel_title": "Scroll capturing",
+        "btn_stop": "■ Stop",
+        "btn_cancel_cap": "Cancel",
+        "panel_hint": "Stop = save up to here · Cancel (Esc) = discard",
+        "status_stopping": "Stopping... saving up to here",
+        "status_cancelling": "Cancelling...",
+        "status_stopped_early": "Stopped before capturing began — nothing to save",
+        "status_stopped_fmt": "Stopped — saved up to here: {name}",
+        "status_stopped_split_fmt": "Stopped — saved up to here as {n} files",
         "status_error": "Error / Notice",
         "guide_region": "Drag the scrolling area to capture   (ESC = cancel)",
         "guide_monitor": "Move the mouse to the monitor to capture, then click.  (ESC = cancel)",
@@ -524,6 +547,15 @@ TR = {
         "status_done_fmt": "完了: {name}",
         "status_done_split_fmt": "完了: {n}個のファイルに分割保存されました",
         "status_cancelled": "キャンセルされました",
+        "panel_title": "スクロールキャプチャ中",
+        "btn_stop": "■ 停止",
+        "btn_cancel_cap": "キャンセル",
+        "panel_hint": "停止 = ここまで保存 · キャンセル(Esc) = 保存しない",
+        "status_stopping": "停止中... ここまで保存します",
+        "status_cancelling": "キャンセル中...",
+        "status_stopped_early": "キャプチャ開始前に停止したため、保存する内容がありません",
+        "status_stopped_fmt": "停止 — ここまで保存しました: {name}",
+        "status_stopped_split_fmt": "停止 — ここまで {n} 個のファイルに分けて保存しました",
         "status_error": "エラー / お知らせ",
         "guide_region": "キャプチャする'スクロール範囲'をドラッグしてください   (ESC = キャンセル)",
         "guide_monitor": "キャプチャするモニターへマウスを移動してクリックしてください。  (ESC = キャンセル)",
@@ -621,6 +653,15 @@ TR = {
         "status_done_fmt": "完成: {name}",
         "status_done_split_fmt": "完成: 已分割保存为 {n} 个文件",
         "status_cancelled": "已取消",
+        "panel_title": "正在滚动截图",
+        "btn_stop": "■ 停止",
+        "btn_cancel_cap": "取消",
+        "panel_hint": "停止 = 保存到此处 · 取消(Esc) = 不保存",
+        "status_stopping": "正在停止... 保存到此处",
+        "status_cancelling": "正在取消...",
+        "status_stopped_early": "在开始截图前已停止，没有可保存的内容",
+        "status_stopped_fmt": "已停止 — 已保存到此处: {name}",
+        "status_stopped_split_fmt": "已停止 — 已分成 {n} 个文件保存到此处",
         "status_error": "错误 / 提示",
         "guide_region": "拖动要截取的'滚动区域'   (ESC = 取消)",
         "guide_monitor": "请将鼠标移动到要截取的显示器并点击。  (ESC = 取消)",
@@ -731,10 +772,19 @@ def _wheel(hwnd, cx, cy, notches):
         time.sleep(0.02)
 
 
-def _sendmsg_wheel(cx, cy, notches):
+def _own_window(h):
+    try:
+        return bool(h) and win32process.GetWindowThreadProcessId(h)[1] == os.getpid()
+    except Exception:
+        return False
+
+
+def _sendmsg_wheel(cx, cy, notches, hwnd=None):
     """커서 위치의 창에 WM_MOUSEWHEEL 메시지를 직접 전달."""
     try:
         child = win32gui.WindowFromPoint((cx, cy))
+        if _own_window(child) and hwnd:     # 떠 있는 패널 등 이 앱의 창이면 대상 창으로
+            child = hwnd
         delta = (WHEEL_DELTA if notches > 0 else -WHEEL_DELTA) * abs(notches)
         wparam = (delta & 0xFFFF) << 16
         lparam = ((cy & 0xFFFF) << 16) | (cx & 0xFFFF)
@@ -752,6 +802,30 @@ def _key(hwnd, cx, cy, down):
     win32api.keybd_event(key, 0, win32con.KEYEVENTF_KEYUP, 0)
 
 
+def _foreign_window_at(x, y):
+    """(x, y) 아래의 '다른 프로세스' 최상위 창 (Z 순서 위부터). 없으면 None."""
+    found = []
+
+    def cb(h, _):
+        if found:
+            return True
+        try:
+            if (win32gui.IsWindowVisible(h) and not win32gui.IsIconic(h)
+                    and not _own_window(h)):
+                l, t, r, b = win32gui.GetWindowRect(h)
+                if l <= x < r and t <= y < b and (r - l) > 40 and (b - t) > 40:
+                    found.append(h)
+        except Exception:
+            pass
+        return True
+
+    try:
+        win32gui.EnumWindows(cb, None)
+    except Exception:
+        pass
+    return found[0] if found else None
+
+
 def apply_scroll(hwnd, cx, cy, method, down, notches, park=None):
     if IS_MAC:   # 포인터를 옮기지 않는 이벤트 전달(send) 우선
         pm.apply_scroll(hwnd, cx, cy, method, down, notches)
@@ -759,7 +833,7 @@ def apply_scroll(hwnd, cx, cy, method, down, notches, park=None):
     if method == "wheel":
         _wheel(hwnd, cx, cy, -notches if down else notches)
     elif method == "send":
-        _sendmsg_wheel(cx, cy, -notches if down else notches)
+        _sendmsg_wheel(cx, cy, -notches if down else notches, hwnd)
     else:
         _key(hwnd, cx, cy, down)
     # 캡처 직전 커서를 콘텐츠 밖으로 이동 → 마우스오버(hover) 배경색 변화 방지
@@ -826,6 +900,35 @@ def images_equal(a, b, thresh=1.2):
 
 
 # ==================================================================
+# 캡처 중지 / 취소
+# ==================================================================
+class CaptureCancelled(Exception):
+    """[취소] 또는 Esc — 결과를 저장하지 않고 끝낸다."""
+
+
+class CaptureControl:
+    """캡처 스레드와 UI 사이의 중지/취소 신호.
+    stop  : 지금까지 캡처한 부분까지 저장하고 끝냄 ([중지])
+    cancel: 저장하지 않고 끝냄 ([취소] / Esc)"""
+
+    def __init__(self):
+        self.stop = threading.Event()
+        self.cancel = threading.Event()
+        self.stopped = False        # 실제로 '중지'로 끝났는지(완료 메시지용)
+
+
+_CTL = None   # 현재 진행 중인 캡처의 제어 객체(캡처 스레드 1개만 동작)
+
+
+def _check_abort():
+    """준비 단계(맨 위 이동/고정 영역 감지) 중의 중지·취소는 모두 '취소'로 처리
+    (아직 이어붙인 결과가 없으므로 저장할 것이 없음)."""
+    c = _CTL
+    if c is not None and (c.cancel.is_set() or c.stop.is_set()):
+        raise CaptureCancelled()
+
+
+# ==================================================================
 # 캡처 엔진
 # ==================================================================
 def scroll_to_top(sct, region, hwnd, cx, cy, notches, wait, park=None):
@@ -834,6 +937,7 @@ def scroll_to_top(sct, region, hwnd, cx, cy, notches, wait, park=None):
     pref = 0
     stagnant = 0
     for _ in range(400):
+        _check_abort()
         moved = False
         for m in METHODS[pref:] + METHODS[:pref]:
             apply_scroll(hwnd, cx, cy, m, down=False, notches=notches, park=park)
@@ -893,6 +997,7 @@ def measure_fixed_regions(sct, region, hwnd, cx, cy, notches, wait, park=None):
     frames = [grab(sct, region)]
     downs = 0
     for _ in range(3):
+        _check_abort()
         got = None
         for m in METHODS:
             apply_scroll(hwnd, cx, cy, m, down=True, notches=notches, park=park)
@@ -995,6 +1100,7 @@ def measure_fixed_regions(sct, region, hwnd, cx, cy, notches, wait, park=None):
 def _scroll_down_n(sct, region, hwnd, cx, cy, notches, wait, park, n):
     """n번 아래로 스크롤(작동하는 방식 자동 선택)."""
     for _ in range(n):
+        _check_abort()
         before = grab(sct, region)
         for m in METHODS:
             apply_scroll(hwnd, cx, cy, m, down=True, notches=notches, park=park)
@@ -1103,7 +1209,17 @@ def capture_scrolling_region(region, status_cb, opts=None):
     """
     opts: {'auto_top': bool, 'speed': float, 'strings': dict}
     """
+    global _CTL
     opts = opts or {}
+    _CTL = opts.get("control")
+    try:
+        return _capture_scrolling_region(region, status_cb, opts)
+    finally:
+        _CTL = None
+
+
+def _capture_scrolling_region(region, status_cb, opts):
+    ctl = _CTL
     S = opts.get("strings", {})
     auto_top = opts.get("auto_top", True)
     handle_sticky = opts.get("handle_sticky", False)
@@ -1133,6 +1249,8 @@ def capture_scrolling_region(region, status_cb, opts=None):
     else:
         child = win32gui.WindowFromPoint((cx, cy))
         hwnd = ctypes.windll.user32.GetAncestor(child, GA_ROOT)
+        if _own_window(hwnd):
+            hwnd = _foreign_window_at(cx, cy) or hwnd
     ensure_foreground(hwnd)
     time.sleep(0.4)
 
@@ -1296,13 +1414,28 @@ def capture_scrolling_region(region, status_cb, opts=None):
                     left_mask[rr] = True
             report(frame)
 
+        def halted():
+            """본 캡처 중: 취소면 예외, 중지면 True(여기까지 저장)."""
+            if ctl is None:
+                return False
+            if ctl.cancel.is_set():
+                raise CaptureCancelled()
+            if ctl.stop.is_set():
+                ctl.stopped = True
+                return True
+            return False
+
         for _ in range(8000):
+            if halted():
+                break
             before = prev
 
             # (a) 작은 스텝으로 정확히 진행 (콘텐츠 열만으로 정렬)
             #     매 스텝 '이전/현재 프레임의 상단 동일영역'을 sticky로 감지해 제외(제안 방식).
             best = None
             for m in order():
+                if halted():
+                    break
                 apply_scroll(hwnd, cx, cy, m, down=True, notches=notches, park=park)
                 time.sleep(wait)
                 cur = grab(sct, region)
@@ -1315,6 +1448,8 @@ def capture_scrolling_region(region, status_cb, opts=None):
                     best = (cur, delta, st)
                     pref = METHODS.index(m)
                     break
+            if ctl is not None and ctl.stopped:
+                break
             if best is not None:
                 cur, delta, st = best
                 place(cur, delta, st)
@@ -1337,6 +1472,8 @@ def capture_scrolling_region(region, status_cb, opts=None):
             # (c) 변화 없음 → 점점 큰 스크롤로 단색구간/바닥 판별
             crossed = None
             for pn in (8, 20, 45):
+                if halted():
+                    break
                 for m in order():
                     apply_scroll(hwnd, cx, cy, m, down=True, notches=pn, park=park)
                     time.sleep(wait * 1.4)
@@ -1348,7 +1485,7 @@ def capture_scrolling_region(region, status_cb, opts=None):
                 if crossed is not None:
                     break
             if crossed is None:
-                break  # 진짜 바닥
+                break  # 진짜 바닥(또는 중지)
 
             cur = crossed
             delta, score = find_delta(C(before), C(cur), max_frac=0.95)
@@ -1366,7 +1503,7 @@ def capture_scrolling_region(region, status_cb, opts=None):
         except Exception:
             pass
 
-    if canvas.shape[0] <= h + 4:
+    if canvas.shape[0] <= h + 4 and not (ctl is not None and ctl.stopped):
         raise RuntimeError(S.get(
             "err_no_scroll",
             "스크롤이 되지 않아 한 화면만 캡처되었습니다.\n"
@@ -1448,30 +1585,58 @@ def save_png_split(img, out_dir, split_h):
 class RegionSelector:
     """드래그로 영역 선택. multi=True면 전체 가상 화면(멀티 모니터) 위에서 선택.
     Windows: 가상 화면 전체를 덮는 오버레이 1개, 실제 좌표는 win32 커서 좌표(DPI 안전).
-    macOS  : 창이 디스플레이를 넘을 수 없으므로 모니터마다 오버레이를 하나씩 띄운다."""
+    macOS  : 창이 디스플레이를 넘을 수 없으므로 모니터마다 오버레이를 하나씩 띄운다.
+
+    화면을 한 장 찍어 어둡게 깔고, 선택 중인 영역만 원래 밝기로 보여 준다
+    (선택 영역은 반투명 마스킹 없음). 포인터는 가운데 공백 없는 흰색 줄 십자."""
+
+    DIM = 0.55          # 선택 영역 밖 어둡게(1.0 = 원래 밝기)
+    CROSS = 22          # 십자선 한쪽 길이(px)
 
     def __init__(self, master, multi=False, guide=""):
         self.result = None
         self._start_scr = None
-        self._rects = []
+        self._start_root = None
+        self._sel = None
+        self._pending = None
         if IS_MAC:
             areas = get_monitors() if multi else [primary_screen()]
         else:
             areas = [virtual_screen() if multi else primary_screen()]
 
         self.tops = []
-        self.canvases = []        # (canvas, 원점x, 원점y)
+        self.views = []        # 모니터(오버레이)별 그리기 정보
         for (vx, vy, vw, vh) in areas:
             top = tk.Toplevel(master)
             top.overrideredirect(True)
             top.geometry(f"{vw}x{vh}+{vx}+{vy}")
-            top.attributes("-alpha", 0.28)
             top.attributes("-topmost", True)
-            top.configure(bg="black", cursor="cross")
-            cv = tk.Canvas(top, highlightthickness=0, bg="black")
+            top.configure(bg="black", cursor="none")
+            cv = tk.Canvas(top, highlightthickness=0, bg="black", cursor="none")
             cv.pack(fill="both", expand=True)
-            cv.create_text(vw // 2, 40, text=guide, fill="white",
-                           font=(UI_FONT, 16, "bold"))
+            v = {"cv": cv, "ox": vx, "oy": vy, "w": vw, "h": vh}
+            bright, dark = self._backdrop(top, vx, vy, vw, vh)
+            if dark is not None:
+                v["bright"], v["dark"] = bright, dark
+                cv.create_image(0, 0, anchor="nw", image=dark)
+                v["hole_img"] = tk.PhotoImage(master=top)
+                v["hole"] = cv.create_image(0, 0, anchor="nw",
+                                            image=v["hole_img"], state="hidden")
+            else:        # 화면을 못 찍으면 예전 방식(창 전체 반투명)
+                top.attributes("-alpha", 0.28)
+                v["hole"] = None
+            v["rect"] = cv.create_rectangle(0, 0, 0, 0, outline="#ff3b30",
+                                            width=2, state="hidden")
+            # 안내 문구(그림자 + 흰 글자)
+            for dx, col in ((2, "black"), (0, "white")):
+                cv.create_text(vw // 2 + dx, 40 + dx, text=guide, fill=col,
+                               font=(UI_FONT, 16, "bold"))
+            # 줄 십자 포인터: 검은 테두리(3px) 위에 흰 선(1px) — 흰 배경에서도 보이게
+            v["cross"] = [cv.create_line(0, 0, 0, 0, fill="black", width=3),
+                          cv.create_line(0, 0, 0, 0, fill="black", width=3),
+                          cv.create_line(0, 0, 0, 0, fill="white", width=1),
+                          cv.create_line(0, 0, 0, 0, fill="white", width=1)]
+            cv.bind("<Motion>", self._hover)
             cv.bind("<ButtonPress-1>", self._down)
             cv.bind("<B1-Motion>", self._move)
             cv.bind("<ButtonRelease-1>", self._up)
@@ -1481,35 +1646,104 @@ class RegionSelector:
                 cv.bind("<Button-2>", lambda e: self._cancel())
                 cv.bind("<Button-3>", lambda e: self._cancel())
             self.tops.append(top)
-            self.canvases.append((cv, vx, vy))
+            self.views.append(v)
         self.top = self.tops[0]
+        try:
+            px, py = self.top.winfo_pointerxy()
+            self._draw_cross(px, py)
+        except Exception:
+            pass
         self.top.focus_force()
         self.top.grab_set()
         if len(self.tops) > 1:   # 다른 모니터의 오버레이도 클릭을 받도록 전역 grab 해제
             self.top.grab_release()
         master.wait_window(self.top)
 
+    # ---------- 배경(어두운 화면 / 밝은 원본) ----------
+    def _backdrop(self, top, x, y, w, h):
+        try:
+            with screen_grabber() as sct:
+                img = grab(sct, (x, y, w, h))
+            rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            if rgb.shape[1] != w or rgb.shape[0] != h:     # Retina(2배) → 화면 좌표 크기
+                rgb = cv2.resize(rgb, (w, h), interpolation=cv2.INTER_AREA)
+            dark = (rgb.astype(np.float32) * self.DIM).astype(np.uint8)
+            return (ImageTk.PhotoImage(Image.fromarray(rgb), master=top),
+                    ImageTk.PhotoImage(Image.fromarray(dark), master=top))
+        except Exception:
+            return None, None
+
+    # ---------- 그리기 ----------
     def _pointer(self, e):
         if IS_MAC:
             return (e.x_root, e.y_root)
         return win32gui.GetCursorPos()
 
-    def _draw(self, x1, y1, x2, y2):
-        for rid, (cv, _, _) in zip(self._rects, self.canvases):
-            cv.delete(rid)
-        self._rects = []
-        for cv, ox, oy in self.canvases:
-            self._rects.append(cv.create_rectangle(
-                x1 - ox, y1 - oy, x2 - ox, y2 - oy, outline="#ff3b30", width=2))
+    def _draw_cross(self, gx, gy):
+        L = self.CROSS
+        for v in self.views:
+            x, y = gx - v["ox"], gy - v["oy"]
+            hb, vb, hw, vw_ = v["cross"]
+            cv = v["cv"]
+            cv.coords(hb, x - L, y, x + L + 1, y)
+            cv.coords(vb, x, y - L, x, y + L + 1)
+            cv.coords(hw, x - L, y, x + L + 1, y)
+            cv.coords(vw_, x, y - L, x, y + L + 1)
+            for i in v["cross"]:
+                cv.tag_raise(i)
+
+    def _draw_sel(self):
+        self._pending = None
+        if self._sel is None:
+            return
+        x1, y1, x2, y2 = self._sel
+        gx1, gx2 = min(x1, x2), max(x1, x2)
+        gy1, gy2 = min(y1, y2), max(y1, y2)
+        for v in self.views:
+            cv = v["cv"]
+            lx1, ly1 = gx1 - v["ox"], gy1 - v["oy"]
+            lx2, ly2 = gx2 - v["ox"], gy2 - v["oy"]
+            cv.coords(v["rect"], lx1, ly1, lx2, ly2)
+            cv.itemconfigure(v["rect"], state="normal")
+            if v["hole"] is None:
+                continue
+            # 이 모니터 안쪽으로 자른 선택 영역만 밝은 원본에서 복사
+            cx1, cy1 = max(0, lx1), max(0, ly1)
+            cx2, cy2 = min(v["w"], lx2), min(v["h"], ly2)
+            if cx2 - cx1 < 1 or cy2 - cy1 < 1:
+                cv.itemconfigure(v["hole"], state="hidden")
+                continue
+            img = v["hole_img"]
+            img.blank()
+            img.configure(width=cx2 - cx1, height=cy2 - cy1)
+            img.tk.call(str(img), "copy", str(v["bright"]),
+                        "-from", cx1, cy1, cx2, cy2, "-to", 0, 0)
+            cv.coords(v["hole"], cx1, cy1)
+            cv.itemconfigure(v["hole"], state="normal")
+            cv.tag_raise(v["rect"])
+        for v in self.views:              # 십자 포인터는 항상 맨 위
+            for i in v["cross"]:
+                v["cv"].tag_raise(i)
+
+    def _schedule_sel(self):
+        if self._pending is None:      # 마우스 이동이 빠를 때 그리기 합치기
+            self._pending = self.top.after_idle(self._draw_sel)
+
+    # ---------- 마우스 ----------
+    def _hover(self, e):
+        self._draw_cross(e.x_root, e.y_root)
 
     def _down(self, e):
         self._start_scr = self._pointer(e)
         self._start_root = (e.x_root, e.y_root)
-        self._draw(e.x_root, e.y_root, e.x_root, e.y_root)
+        self._sel = (e.x_root, e.y_root, e.x_root, e.y_root)
+        self._draw_cross(e.x_root, e.y_root)
 
     def _move(self, e):
-        if self._start_scr is not None:
-            self._draw(self._start_root[0], self._start_root[1], e.x_root, e.y_root)
+        self._draw_cross(e.x_root, e.y_root)
+        if self._start_root is not None:
+            self._sel = (self._start_root[0], self._start_root[1], e.x_root, e.y_root)
+            self._schedule_sel()
 
     def _up(self, e):
         if self._start_scr is None:
@@ -2251,6 +2485,139 @@ class HotkeyDialog:
         self.top.destroy()
 
 
+class CapturePanel:
+    """스크롤 캡처 중 떠 있는 작은 패널: [■ 중지](여기까지 저장) / [취소](저장 안 함).
+    제목 부분을 끌어서 옮길 수 있고, 캡처 결과 이미지에는 찍히지 않는다."""
+
+    def __init__(self, master, t, region, on_stop, on_cancel, pos=None,
+                 on_moved=None):
+        self.on_moved = on_moved
+        self._drag = None
+        C = MC
+        self.top = top = tk.Toplevel(master)
+        top.overrideredirect(True)
+        top.attributes("-topmost", True)
+        top.configure(bg=C["primary"])                     # 1px 파란 테두리
+        body = tk.Frame(top, bg=C["white"])
+        body.pack(padx=1, pady=1)
+        head = tk.Frame(body, bg=C["white"], cursor="fleur")
+        head.pack(fill="x", padx=10, pady=(8, 0))
+        grip = tk.Label(head, text="⠿", bg=C["white"], fg=C["muted"],
+                        font=(UI_FONT, 11), cursor="fleur")
+        grip.pack(side="left")
+        title = tk.Label(head, text=t("panel_title"), bg=C["white"], fg=C["text"],
+                         font=(pick_font_family(), -13, "bold"), cursor="fleur")
+        title.pack(side="left", padx=(4, 0))
+        self.info = tk.Label(body, text=t("status_preparing"), bg=C["white"],
+                             fg=C["primary"], font=(pick_font_family(), -12),
+                             anchor="w", width=26)
+        self.info.pack(fill="x", padx=10, pady=(4, 0))
+        btns = tk.Frame(body, bg=C["white"])
+        btns.pack(fill="x", padx=10, pady=(8, 0))
+        self.b_stop = RoundButton(btns, text=t("btn_stop"), kind="primary",
+                                  min_width=96, command=on_stop)
+        self.b_stop.pack(side="left")
+        self.b_cancel = RoundButton(btns, text=t("btn_cancel_cap"), kind="danger",
+                                    min_width=96, command=on_cancel)
+        self.b_cancel.pack(side="left", padx=(8, 0))
+        hint = tk.Label(body, text=t("panel_hint"), bg=C["white"], fg=C["muted"],
+                        font=(pick_font_family(), -11))
+        hint.pack(fill="x", padx=10, pady=(6, 8))
+        for w in (top, body, head, grip, title, self.info, hint):
+            w.bind("<ButtonPress-1>", self._press)
+            w.bind("<B1-Motion>", self._motion)
+            w.bind("<ButtonRelease-1>", self._release)
+
+        top.update_idletasks()
+        pw, ph = top.winfo_reqwidth(), top.winfo_reqheight()
+        x, y = self._place(region, pw, ph, pos)
+        top.geometry(f"+{x}+{y}")
+        top.update()
+        self._exclude_from_capture()
+
+    # ----- 위치: 저장된 위치(캡처 영역과 안 겹칠 때) → 영역과 안 겹치는 모서리 -----
+    @staticmethod
+    def _overlap(a, b, m=8):
+        ax, ay, aw, ah = a
+        bx, by, bw, bh = b
+        return not (ax + aw + m <= bx or bx + bw + m <= ax
+                    or ay + ah + m <= by or by + bh + m <= ay)
+
+    def _place(self, region, pw, ph, pos):
+        mons = get_monitors()
+        if pos:
+            px, py = int(pos[0]), int(pos[1])
+            inside = any(mx <= px and my <= py and px + pw <= mx + mw
+                         and py + ph <= my + mh for mx, my, mw, mh in mons)
+            if inside and not self._overlap((px, py, pw, ph), region):
+                return px, py
+        rx, ry, rw, rh = region
+        cx, cy = rx + rw // 2, ry + rh // 2
+        home = [m for m in mons
+                if m[0] <= cx < m[0] + m[2] and m[1] <= cy < m[1] + m[3]]
+        order = home + [m for m in mons if m not in home]
+        for mx, my, mw, mh in order:
+            for x, y in ((mx + mw - pw - 24, my + mh - ph - 64),
+                         (mx + 24, my + mh - ph - 64),
+                         (mx + mw - pw - 24, my + 48),
+                         (mx + 24, my + 48)):
+                if not self._overlap((x, y, pw, ph), region):
+                    return x, y
+        mx, my, mw, mh = order[0]
+        return mx + mw - pw - 24, my + mh - ph - 64
+
+    def _exclude_from_capture(self):
+        if IS_MAC:
+            pm.set_capture_excluded(True)
+            return
+        try:
+            u = ctypes.windll.user32
+            hwnd = u.GetAncestor(self.top.winfo_id(), GA_ROOT)
+            # 클릭해도 대상 창의 포커스를 빼앗지 않음
+            ex = u.GetWindowLongW(hwnd, -20)                  # GWL_EXSTYLE
+            u.SetWindowLongW(hwnd, -20, ex | 0x08000000)      # WS_EX_NOACTIVATE
+            # 화면 캡처에서 제외 (Windows 10 2004+)
+            u.SetWindowDisplayAffinity(hwnd, 0x11)            # WDA_EXCLUDEFROMCAPTURE
+        except Exception:
+            pass
+
+    # ----- 끌어서 이동 -----
+    def _press(self, e):
+        self._drag = (e.x_root - self.top.winfo_x(), e.y_root - self.top.winfo_y())
+
+    def _motion(self, e):
+        if self._drag:
+            self.top.geometry(f"+{e.x_root - self._drag[0]}+{e.y_root - self._drag[1]}")
+
+    def _release(self, e):
+        if self._drag and self.on_moved:
+            self.on_moved(self.top.winfo_x(), self.top.winfo_y())
+        self._drag = None
+
+    def set_info(self, text):
+        try:
+            self.info.config(text=text)
+        except Exception:
+            pass
+
+    def lock(self, text):
+        """중지/취소를 누른 뒤: 버튼 비활성 + 안내."""
+        self.set_info(text)
+        for b in (self.b_stop, self.b_cancel):
+            try:
+                b.set_enabled(False)
+            except Exception:
+                pass
+
+    def close(self):
+        if IS_MAC:
+            pm.set_capture_excluded(False)
+        try:
+            self.top.destroy()
+        except Exception:
+            pass
+
+
 class BusyOverlay:
     """캡처 후 저장/합성 중 '잠시만 기다려 주세요' + 큰 진행 아이콘을 화면 가운데 표시."""
 
@@ -2648,8 +3015,10 @@ class App:
         v = self.hotkeys.get(mode)
         return v[2] if v else ""
 
-    def _apply_hotkeys(self):
+    def _apply_hotkeys(self, capturing=False):
         binds = {m: (v[0], v[1]) for m, v in self.hotkeys.items() if v}
+        if capturing:   # 캡처 중에만 Esc 를 전역 '취소' 키로 등록
+            binds[CANCEL_MODE] = ESC_HOTKEY
         try:
             self.hotkeys_mgr.set_bindings(binds)
         except Exception:
@@ -2658,6 +3027,9 @@ class App:
     def _hotkey_fire(self, mode):
         """단축키 스레드에서 호출 → 메인 스레드로 넘겨 캡처 시작."""
         try:
+            if mode == CANCEL_MODE:
+                self.root.after(0, self._panel_cancel)
+                return
             self.root.after(0, lambda m=mode: self.start_capture(m))
         except Exception:
             pass
@@ -2960,6 +3332,7 @@ class App:
         self.opt_on_top.set(d["on_top"])
         self.opt_expanded.set(d["options_expanded"])
         self.speed_idx.set(SPEED_DEFAULT_IDX)
+        self.cfg["panel_pos"] = d["panel_pos"]   # 떠 있는 패널 위치도 초기화
         self.cfg["lang"] = d["lang"]
         self.cfg["hotkeys"] = {}                 # 단축키도 기본값으로
         self.hotkeys = self._load_hotkeys()
@@ -2982,7 +3355,13 @@ class App:
         self.refresh_list()
 
     def set_status(self, text):
-        self.root.after(0, lambda: self.status.set(text))
+        def apply():
+            self.status.set(text)
+            p = getattr(self, "_panel", None)
+            if p is not None and not (self._ctl and (self._ctl.stop.is_set()
+                                                     or self._ctl.cancel.is_set())):
+                p.set_info(text)
+        self.root.after(0, apply)
 
     def change_dir(self):
         d = filedialog.askdirectory(initialdir=self.save_dir.get())
@@ -3087,19 +3466,81 @@ class App:
         }
         if IS_MAC:
             opts["strings"]["err_no_scroll"] = self.t("err_no_scroll_mac")
+        # 중지/취소: 떠 있는 패널 + 전역 Esc
+        self._ctl = CaptureControl()
+        opts["control"] = self._ctl
+        try:
+            self._panel = CapturePanel(
+                self.root, self.t, region, self._panel_stop, self._panel_cancel,
+                pos=self.cfg.get("panel_pos"), on_moved=self._panel_moved)
+        except Exception:
+            self._panel = None
+        self._apply_hotkeys(capturing=True)
         threading.Thread(target=self._worker, args=(region, opts),
                          daemon=True).start()
+
+    # ---------- 캡처 중지 / 취소 ----------
+    def _panel_stop(self):
+        ctl = getattr(self, "_ctl", None)
+        if ctl is None or ctl.cancel.is_set():
+            return
+        ctl.stop.set()
+        if self._panel:
+            self._panel.lock(self.t("status_stopping"))
+        self.status.set(self.t("status_stopping"))
+
+    def _panel_cancel(self):
+        ctl = getattr(self, "_ctl", None)
+        if ctl is None:
+            return
+        ctl.cancel.set()
+        if self._panel:
+            self._panel.lock(self.t("status_cancelling"))
+        self.status.set(self.t("status_cancelling"))
+
+    def _panel_moved(self, x, y):
+        self.cfg["panel_pos"] = [int(x), int(y)]
+        save_cfg(self.cfg)
+
+    def _end_capture_controls(self):
+        """패널 닫기 + Esc 전역 키 해제 (여러 번 불려도 안전)."""
+        p = getattr(self, "_panel", None)
+        self._panel = None
+        if p is not None:
+            p.close()
+        if getattr(self, "_ctl", None) is not None:
+            self._ctl = None
+            self._apply_hotkeys()
+
+    def _cancelled(self, early_stop=False):
+        self._end_capture_controls()
+        self._close_busy()
+        self._set_busy(False)
+        if getattr(self, "_hidden", True):
+            self.root.deiconify()
+        else:
+            self._show_progress(False)
+        # 준비 단계(맨 위 이동/고정 영역 감지)에서 [중지] → 이어붙인 결과가 없어 저장 안 함
+        self.status.set(self.t("status_stopped_early" if early_stop
+                               else "status_cancelled"))
 
     def _worker(self, region, opts):
         try:
             time.sleep(0.2)
             img = capture_scrolling_region(region, self.set_status, opts)
+            ctl = opts.get("control")
+            stopped = bool(ctl is not None and ctl.stopped)
             if self.opt_split_enabled.get():
                 paths = save_png_split(img, self.save_dir.get(), self._split_height())
-                self.root.after(0, lambda: self._done_split(paths, img))
+                self.root.after(0, lambda: self._done_split(paths, img, stopped))
             else:
                 path = save_png(img, self.save_dir.get())
-                self.root.after(0, lambda: self._done(path))
+                self.root.after(0, lambda: self._done(path, stopped))
+        except CaptureCancelled:
+            ctl = opts.get("control")
+            early = bool(ctl is not None and ctl.stop.is_set()
+                         and not ctl.cancel.is_set())
+            self.root.after(0, lambda: self._cancelled(early))
         except Exception as e:
             m = str(e)
             self.root.after(0, lambda: self._error(m))
@@ -3128,6 +3569,7 @@ class App:
         self.root.after(0, self._show_busy)
 
     def _show_busy(self):
+        self._end_capture_controls()      # 합성/저장 단계부터는 중지·취소 불가
         if getattr(self, "_busy_overlay", None) is None:
             try:
                 self._busy_overlay = BusyOverlay(self.root, self.t("please_wait"))
@@ -3141,6 +3583,7 @@ class App:
             self._busy_overlay = None
 
     def _finish_ui(self):
+        self._end_capture_controls()
         self._close_busy()
         self._set_busy(False)
         if getattr(self, "_hidden", True):
@@ -3150,20 +3593,22 @@ class App:
             self._set_progress(100)
             self.root.after(3000, lambda: self._show_progress(False))
 
-    def _done(self, path):
+    def _done(self, path, stopped=False):
         self._finish_ui()
-        done = self.t("status_done_fmt", name=os.path.basename(path))
+        done = self.t("status_stopped_fmt" if stopped else "status_done_fmt",
+                      name=os.path.basename(path))
         # 캡처 완료 시 자동으로 클립보드에 복사(옵션)
         if self.opt_auto_copy.get() and copy_image_to_clipboard(path):
             done = f"{done}  ·  {self.t('copied_status')}"
         self.status.set(done)
         self.refresh_list()
 
-    def _done_split(self, paths, img=None):
+    def _done_split(self, paths, img=None, stopped=False):
         """높이 분할 자르기로 여러 파일이 생성된 경우의 완료 처리.
         클립보드에는 분할 전 '원본 전체' 이미지를 복사한다."""
         self._finish_ui()
-        done = self.t("status_done_split_fmt", n=len(paths))
+        done = self.t("status_stopped_split_fmt" if stopped
+                      else "status_done_split_fmt", n=len(paths))
         if img is not None and self.opt_auto_copy.get() \
                 and copy_ndarray_to_clipboard(img):
             done = f"{done}  ·  {self.t('copied_status')}"
@@ -3171,6 +3616,7 @@ class App:
         self.refresh_list()
 
     def _error(self, msg):
+        self._end_capture_controls()
         self._close_busy()
         self._set_busy(False)
         if getattr(self, "_hidden", True):
@@ -3462,6 +3908,27 @@ def _selftest(app, out_path):
     check("icons", lambda: len(app._icon_imgs))
     check("list_rows", lambda: len(app.list_inner.winfo_children()))
     check("hotkeys", lambda: {m: v[2] for m, v in app.hotkeys.items() if v})
+
+    def _panel():
+        pnl = CapturePanel(app.root, app.t, (0, 0, 200, 200),
+                           lambda: None, lambda: None)
+        geo = (pnl.top.winfo_width(), pnl.top.winfo_height())
+        pnl.close()
+        return geo
+
+    check("capture_panel", _panel)
+
+    def _esc_hotkey():
+        app._ctl = CaptureControl()
+        app._apply_hotkeys(capturing=True)
+        n = len(app.hotkeys_mgr.bindings)
+        app._end_capture_controls()
+        return f"{n} -> {len(app.hotkeys_mgr.bindings)}"
+
+    check("esc_hotkey(bind)", _esc_hotkey)
+    check("region_backdrop", lambda: RegionSelector._backdrop(
+        RegionSelector.__new__(RegionSelector), app.root,
+        *primary_screen())[1] is not None)
     if IS_MAC:
         check("hotkeys_registered", lambda: len(app.hotkeys_mgr._refs))
         check("permissions(screen,ax)", pm.permissions_status)

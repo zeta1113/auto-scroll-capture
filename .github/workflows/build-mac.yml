@@ -88,10 +88,15 @@ jobs:
 
       - name: Engine test (scroll capture on a test window)
         continue-on-error: true
-        timeout-minutes: 6
+        timeout-minutes: 12
         run: |
           python tools/engine_test.py "engine_test_${{ matrix.arch }}.png" 2>&1 | tee engine_${{ matrix.arch }}.txt
           echo "::notice title=engine ${{ matrix.arch }}::$(grep -E 'result:|PASS|FAIL' engine_${{ matrix.arch }}.txt | tr '\n' ' ')"
+          # [중지] → 여기까지 저장 / [취소] → 저장 안 함
+          python tools/engine_test.py "engine_stop_${{ matrix.arch }}.png" --stop-after 12 2>&1 | tee engine_stop_${{ matrix.arch }}.txt
+          echo "::notice title=engine-stop ${{ matrix.arch }}::$(grep -E 'result:|stopped|PASS|FAIL' engine_stop_${{ matrix.arch }}.txt | tr '\n' ' ')"
+          python tools/engine_test.py "engine_cancel_${{ matrix.arch }}.png" --cancel-after 6 2>&1 | tee engine_cancel_${{ matrix.arch }}.txt
+          echo "::notice title=engine-cancel ${{ matrix.arch }}::$(grep -E 'cancel|PASS|FAIL' engine_cancel_${{ matrix.arch }}.txt | tr '\n' ' ')"
 
       - name: Build app + DMG
         run: |
@@ -114,7 +119,8 @@ jobs:
         run: |
           OUT="$PWD/selftest_${{ matrix.arch }}.txt"
           SCROLLCAPTURE_SELFTEST="$OUT" build/mac/dist/ScrollCapture.app/Contents/MacOS/ScrollCapture
-          while IFS= read -r line; do echo "::notice title=selftest ${{ matrix.arch }}::$line"; done < "$OUT"
+          echo "::notice title=selftest ${{ matrix.arch }}::$(grep -c '^OK' "$OUT") OK, $(grep -c '^FAIL' "$OUT") FAIL — $(grep -E 'capture_panel|esc_hotkey|region_backdrop|hotkeys_registered|clipboard|permissions' "$OUT" | tr '\n' ' ')"
+          grep '^FAIL' "$OUT" | while IFS= read -r line; do echo "::error title=selftest ${{ matrix.arch }}::$line"; done || true
 
       - uses: actions/upload-artifact@v4
         if: always()
