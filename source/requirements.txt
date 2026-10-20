@@ -1,6 +1,7 @@
 numpy
 opencv-python
 pillow
+certifi
 mss; sys_platform == "win32"
 pywin32; sys_platform == "win32"
 pyobjc-framework-Quartz; sys_platform == "darwin"

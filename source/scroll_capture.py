@@ -4041,6 +4041,23 @@ def _selftest(app, out_path):
         check("clipboard", lambda: copy_ndarray_to_clipboard(
             np.full((20, 30, 3), 200, np.uint8)))
 
+    # 업데이트 확인용 HTTPS 접속(인증서 검증). 기본 컨텍스트 결과는 참고용(INFO)
+    def _https(ctx):
+        import urllib.request
+        with urllib.request.urlopen("https://github.com", timeout=10,
+                                    context=ctx) as r:
+            return r.status
+
+    if updater is not None:
+        import ssl
+        try:
+            lines.append("INFO https(default ssl): "
+                         f"{_https(ssl.create_default_context())}")
+        except Exception as e:
+            lines.append(f"INFO https(default ssl): {type(e).__name__}: "
+                         f"{str(e)[:120]}")
+        check("https(updater ssl)", lambda: _https(updater.ssl_context()))
+
     # 실제 키(F19)를 보내 전역 단축키 → 메인 루프 처리까지 확인
     # (예전 macOS 크래시: 단축키 콜백에서 Tk 호출 → 다음 after 콜백에서 abort)
     got = []

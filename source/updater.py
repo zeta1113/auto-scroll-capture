@@ -17,6 +17,7 @@ check_latest(repo, current_version) -> dict 또는 None
 """
 
 import re
+import ssl
 import sys
 import json
 import platform
@@ -40,6 +41,17 @@ def _asset_matches(name):
     return name.endswith(".exe")
 
 
+def ssl_context():
+    """HTTPS 인증서 검증용 컨텍스트.
+    macOS 앱에 포함된 python.org Python 은 시스템 인증서를 읽지 못하므로
+    함께 묶은 certifi 인증서 묶음을 사용한다(없으면 기본값)."""
+    try:
+        import certifi
+        return ssl.create_default_context(cafile=certifi.where())
+    except Exception:
+        return ssl.create_default_context()
+
+
 def check_latest(repo, current_version, timeout=6):
     if not repo or "/" not in repo:
         return None
@@ -49,7 +61,8 @@ def check_latest(repo, current_version, timeout=6):
         "User-Agent": "ScrollCapture-Updater",
     })
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:
+        with urllib.request.urlopen(req, timeout=timeout,
+                                    context=ssl_context()) as r:
             data = json.load(r)
     except Exception:
         return None

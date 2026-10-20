@@ -148,6 +148,7 @@ def build_exe():
         "--hidden-import", "win32process",
         "--hidden-import", "win32clipboard",
         "--hidden-import", "updater",
+        "--hidden-import", "certifi", "--collect-data", "certifi",
     ]
     if os.path.isfile(ICON):
         cmd += ["--icon", ICON]

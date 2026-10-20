@@ -27,6 +27,7 @@ mkdir -p "$OUT" "$ROOT/release"
   --hidden-import updater --hidden-import platform_mac \
   --hidden-import Quartz --hidden-import AppKit --hidden-import Foundation \
   --hidden-import ApplicationServices \
+  --hidden-import certifi --collect-data certifi \
   "$ROOT/source/scroll_capture.py"
 
 BUNDLE="$DIST/$APP.app"
