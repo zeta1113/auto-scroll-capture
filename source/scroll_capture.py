@@ -1719,6 +1719,7 @@ class RegionSelector:
                     used.append(w)
                     levels.append(int(w.level()))
             LAST_OVERLAY_INFO["levels"] = levels
+            pm.esc_watch_start()
             self._prev_btn = pm.left_button_down()
             self._job = self.top.after(15, self._mac_poll)
         else:
@@ -1813,6 +1814,11 @@ class RegionSelector:
             return
         try:
             x, y = pm.mouse_pos()
+            esc = pm.esc_pressed()
+            if esc:                             # Esc = 취소
+                LAST_OVERLAY_INFO["esc_via"] = esc
+                self._cancel()
+                return
             if pm.right_button_down():          # 우클릭 = 취소
                 self._cancel()
                 return
@@ -1874,6 +1880,8 @@ class RegionSelector:
         if self._closed:
             return
         self._closed = True
+        if IS_MAC:
+            pm.esc_watch_stop()
         if self._job:
             try:
                 self.top.after_cancel(self._job)
@@ -1910,6 +1918,7 @@ class MonitorPicker:
         if IS_MAC:
             # macOS: 클릭도 직접 읽음(폴링), 오버레이는 Dock·메뉴 막대 위 레벨
             self._prev_btn = pm.left_button_down()
+            pm.esc_watch_start()
         else:
             self.top.bind("<Button-1>", lambda e: self._pick())
         self._poll()
@@ -1948,7 +1957,7 @@ class MonitorPicker:
                 except Exception:
                     pass
         if IS_MAC:
-            if pm.right_button_down():
+            if pm.right_button_down() or pm.esc_pressed():
                 self._close(None)
                 return
             btn = pm.left_button_down()
@@ -1965,6 +1974,8 @@ class MonitorPicker:
         if self._closed:
             return
         self._closed = True
+        if IS_MAC:
+            pm.esc_watch_stop()
         self.result = result
         if self._job:
             try:
@@ -2011,6 +2022,8 @@ class WindowPicker:
         self.top.bind("<Escape>", lambda e: self._close(None))
         self.top.focus_force()
         self._prev_btn = self._left_down()
+        if IS_MAC:
+            pm.esc_watch_start()
         self.top.after(60, self._register_own)
         self._job = self.top.after(120, self._poll)
         _ACTIVE_OVERLAY[0] = lambda: self._close(None)
@@ -2080,7 +2093,7 @@ class WindowPicker:
             self.cur_hwnd = hwnd
             self._draw_outline(hwnd)
 
-        if IS_MAC and pm.right_button_down():     # 우클릭 = 취소
+        if IS_MAC and (pm.right_button_down() or pm.esc_pressed()):  # 우클릭/Esc = 취소
             self._close(None)
             return
         btn = self._left_down()
@@ -2091,6 +2104,8 @@ class WindowPicker:
         self._job = self.top.after(60, self._poll)
 
     def _close(self, hwnd):
+        if IS_MAC:
+            pm.esc_watch_stop()
         if self._job:
             try:
                 self.top.after_cancel(self._job)
@@ -3202,6 +3217,7 @@ class App:
         if mode == CANCEL_MODE:
             ov = _ACTIVE_OVERLAY[0]
             if ov is not None:          # 영역/모니터/창 선택 화면 취소
+                LAST_OVERLAY_INFO["esc_via"] = "hotkey"
                 ov()
             else:                       # 스크롤 캡처 취소
                 self._panel_cancel()
@@ -4326,6 +4342,8 @@ def _selftest(app, out_path):
         app.root.after_cancel(guard)
         dt = time.time() - t0
         n_after = len(glob.glob(os.path.join(tmp, "*.png")))
+        lines.append(f"INFO esc: via={LAST_OVERLAY_INFO.get('esc_via')} "
+                     f"hk_err={getattr(pm, 'LAST_HOTKEY_ERRORS', {}).get(CANCEL_MODE) if IS_MAC else '-'}")
         check("esc_cancel", lambda: f"{dt:.1f}s" if (n_after == n_before and dt < 9)
               else (_ for _ in ()).throw(RuntimeError(f"not cancelled ({dt:.1f}s)")))
         _selftest_finish(app, out_path, lines, failed)

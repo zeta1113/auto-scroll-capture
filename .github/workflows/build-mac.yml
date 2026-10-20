@@ -128,7 +128,7 @@ jobs:
             echo "::error title=selftest ${{ matrix.arch }}::exit $st — last: $(grep -E '^(OK|FAIL|STEP|INFO)' "$OUT" | tail -n 3 | tr '\n' ' ')"
             grep -E 'File ".*(scroll_capture|platform_mac)|Fatal|Error|Current thread|Thread 0x' "$LOG" | head -n 8 | while IFS= read -r line; do echo "::error title=trace ${{ matrix.arch }}::$line"; done
           fi
-          echo "::notice title=selftest ${{ matrix.arch }}::$(grep -c '^OK' "$OUT") OK, $(grep -c '^FAIL' "$OUT") FAIL — $(grep -E 'overlay|region_drag|esc_cancel|hotkey_fired|update_check' "$OUT" | tr '\n' ' ')"
+          echo "::notice title=selftest ${{ matrix.arch }}::$(grep -c '^OK' "$OUT") OK, $(grep -c '^FAIL' "$OUT") FAIL — $(grep -E 'overlay|region_drag|esc|hotkey_fired' "$OUT" | tr '\n' ' ')"
           grep '^FAIL' "$OUT" | while IFS= read -r line; do echo "::error title=selftest ${{ matrix.arch }}::$line"; done || true
           exit $st
 

@@ -287,6 +287,51 @@ def overlay_window(rect, exclude=()):
     return best
 
 
+_esc_flag = [None]
+_esc_monitor = [None]
+
+
+def esc_watch_start():
+    """선택 화면용 Esc 감지 시작: 앱 내부 키 입력 모니터(플래그만 기록, Tk 호출 없음)."""
+    _esc_flag[0] = None
+    esc_watch_stop()
+    try:
+        def handler(ev):
+            try:
+                if int(ev.keyCode()) == 53:
+                    _esc_flag[0] = "monitor"
+            except Exception:
+                pass
+            return ev
+        _esc_monitor[0] = NSEvent.addLocalMonitorForEventsMatchingMask_handler_(
+            1 << 10, handler)                     # NSEventMaskKeyDown
+    except Exception:
+        _esc_monitor[0] = None
+
+
+def esc_watch_stop():
+    m = _esc_monitor[0]
+    _esc_monitor[0] = None
+    if m is not None:
+        try:
+            NSEvent.removeMonitor_(m)
+        except Exception:
+            pass
+
+
+def esc_pressed():
+    """Esc 가 눌렸으면 감지 경로 이름, 아니면 None (폴링용)."""
+    if _esc_flag[0]:
+        return _esc_flag[0]
+    try:
+        if Quartz.CGEventSourceKeyState(
+                Quartz.kCGEventSourceStateHIDSystemState, 53):
+            return "keystate"
+    except Exception:
+        pass
+    return None
+
+
 def mouse_pos():
     """현재 마우스 위치(화면 좌표, 주 모니터 좌상단 원점). 권한 불필요."""
     x, y = _cursor_pos()
@@ -579,6 +624,9 @@ _HANDLER = ctypes.CFUNCTYPE(ctypes.c_int32, ctypes.c_void_p, ctypes.c_void_p,
                             ctypes.c_void_p)
 
 
+LAST_HOTKEY_ERRORS = {}   # mode -> RegisterEventHotKey 결과(진단용)
+
+
 class HotkeyManager:
     """Windows 판 HotkeyManager 와 같은 인터페이스. 메인 스레드에서 호출해야 한다."""
 
@@ -658,6 +706,7 @@ class HotkeyManager:
                 err = c.RegisterEventHotKey(
                     int(kc), int(mods), _EventHotKeyID(self.SIG, i), target, 0,
                     ctypes.byref(ref))
+                LAST_HOTKEY_ERRORS[mode] = int(err)     # 0 = 성공
                 if err == 0:
                     self._ids[i] = mode
                     self._refs.append(ref)
