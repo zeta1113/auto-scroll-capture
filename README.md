@@ -72,11 +72,12 @@ auto-capture/
 ## 릴리즈 정보
 
 - 최신 빌드 및 전체 이력은 [`release/RELEASES.md`](release/RELEASES.md) 참고.
-- 📥 **다운로드**: [최신 릴리스(v1.5.3)](https://github.com/zeta1113/auto-scroll-capture/releases/latest)
-  - Windows: `ScrollCapture_Setup_v1.5.3.exe`
-  - macOS: `ScrollCapture_mac_arm64_v1.5.3.dmg`(Apple Silicon) / `ScrollCapture_mac_x86_64_v1.5.3.dmg`(Intel)
+- 📥 **다운로드**: [최신 릴리스(v1.5.4)](https://github.com/zeta1113/auto-scroll-capture/releases/latest)
+  - Windows: `ScrollCapture_Setup_v1.5.4.exe`
+  - macOS: `ScrollCapture_mac_arm64_v1.5.4.dmg`(Apple Silicon) / `ScrollCapture_mac_x86_64_v1.5.4.dmg`(Intel)
 - 🔔 자동 업데이트: `GITHUB_REPO = "zeta1113/auto-scroll-capture"` 설정됨 — 새 릴리스가 올라오면 앱이 자동 감지해 알림
-- 현재 최신: **v1.5.3** — Windows `ScrollCapture_Setup_v1.5.3.exe` + macOS DMG(arm64/x86_64)
+- 현재 최신: **v1.5.4** — Windows `ScrollCapture_Setup_v1.5.4.exe` + macOS DMG(arm64/x86_64)
+  - v1.5.4: **macOS 영역 선택 화면 수정** — 십자 포인터 무반응·드래그 멈춤·Esc 무반응 해결(마우스/키 직접 감지), 오버레이가 Dock·메뉴 막대까지 덮음 · CI 자체 점검에 실제 마우스 드래그/Esc 테스트 추가
   - v1.5.3: **macOS 업데이트 확인 실패 수정**(앱에 certifi 인증서 묶음 포함 → GitHub HTTPS 인증서 확인) · 업데이트 확인 실패 시 이유 표시
   - v1.5.2: **macOS 단축키를 누르면 앱이 종료되던 문제 수정**(Carbon 콜백에서 Tk 호출 금지 → 큐 + 메인 루프 처리) · 선택 화면 중복 열림 방지 · CI 자체 점검에 실제 키 입력 단축키 확인 추가
   - v1.5.1: **스크롤 캡처 중지/취소 패널**([■ 중지]=여기까지 저장, [취소]/Esc=저장 안 함, 끌어서 이동, 캡처에 안 찍힘) · 영역 지정 시 **선택 영역만 밝게** 표시(테두리 1px) · **흰색 줄 십자 포인터**(가운데 공백 없음) · **캡처를 누른 순간 화면 고정**(마우스 오버 메뉴·영상 프레임 유지)
@@ -198,7 +199,7 @@ GitHub 릴리즈에 새 버전이 올라오면 프로그램이 **자동으로 �
 
 - 스크롤은 대상 앱에 스크롤 이벤트를 직접 보내 **마우스 포인터를 움직이지 않습니다**.
   (이 방식이 안 먹히는 앱에서만 PageDown 키 → 포인터 잠깐 이동 휠 순서로 자동 전환)
-- 영역 선택/모니터 선택 중 취소: **Esc** 또는 **우클릭**
+- 영역 선택/모니터 선택 중 취소: **Esc** 또는 **우클릭** (선택 화면은 Dock·메뉴 막대까지 덮음)
 - macOS 15(Sequoia) 이상에서는 Option+Shift만 쓰는 단축키를 시스템이 막습니다 →
   [단축키 매핑]에서 Ctrl 또는 Cmd를 포함한 조합으로 바꿔 주세요.
 
