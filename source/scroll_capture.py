@@ -863,6 +863,45 @@ def grab(sct, region):
     return cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
 
 
+def freeze_screen():
+    """지금 이 순간의 전체 화면(모든 모니터)을 한 장으로 고정.
+    오버레이가 뜨면 마우스 오버 메뉴가 닫히고 영상은 계속 재생되므로,
+    캡처를 누른 '그 순간'을 먼저 찍어 두고 이후 선택·저장에 사용한다."""
+    vx, vy, vw, vh = virtual_screen()
+    with screen_grabber() as sct:
+        img = grab(sct, (vx, vy, vw, vh))
+    sc = max(1, int(round(img.shape[1] / float(vw))))
+    return {"org": (vx, vy), "sc": sc, "img": img}
+
+
+def crop_frozen(frozen, region):
+    """정지 화면에서 화면 좌표 영역(region)을 잘라낸다(Retina 배율 반영)."""
+    vx, vy = frozen["org"]
+    sc = frozen["sc"]
+    img = frozen["img"]
+    x, y, w, h = region
+    x0 = max(0, int(round((x - vx) * sc)))
+    y0 = max(0, int(round((y - vy) * sc)))
+    x1 = min(img.shape[1], int(round((x - vx + w) * sc)))
+    y1 = min(img.shape[0], int(round((y - vy + h) * sc)))
+    if x1 - x0 < 2 or y1 - y0 < 2:
+        raise RuntimeError("region outside frozen screen")
+    return np.ascontiguousarray(img[y0:y1, x0:x1])
+
+
+def set_main_capture_excluded(root, excluded):
+    """앱 메인 창을 화면 캡처에서만 제외/복원(창을 숨기는 지연 없이 바로 찍기 위해)."""
+    if IS_MAC:
+        pm.set_capture_excluded(excluded)
+        return
+    try:
+        u = ctypes.windll.user32
+        hwnd = u.GetAncestor(root.winfo_id(), GA_ROOT)
+        u.SetWindowDisplayAffinity(hwnd, 0x11 if excluded else 0)
+    except Exception:
+        pass
+
+
 def find_delta(prev, curr, max_frac=0.6, side_margin=24):
     """
     아래로 몇 px 스크롤됐는지(delta)와 매칭 신뢰도(score)를 반환.
@@ -1593,7 +1632,7 @@ class RegionSelector:
     DIM = 0.55          # 선택 영역 밖 어둡게(1.0 = 원래 밝기)
     CROSS = 22          # 십자선 한쪽 길이(px)
 
-    def __init__(self, master, multi=False, guide=""):
+    def __init__(self, master, multi=False, guide="", frozen=None):
         self.result = None
         self._start_scr = None
         self._start_root = None
@@ -1615,7 +1654,7 @@ class RegionSelector:
             cv = tk.Canvas(top, highlightthickness=0, bg="black", cursor="none")
             cv.pack(fill="both", expand=True)
             v = {"cv": cv, "ox": vx, "oy": vy, "w": vw, "h": vh}
-            bright, dark = self._backdrop(top, vx, vy, vw, vh)
+            bright, dark = self._backdrop(top, vx, vy, vw, vh, frozen)
             if dark is not None:
                 v["bright"], v["dark"] = bright, dark
                 cv.create_image(0, 0, anchor="nw", image=dark)
@@ -1626,7 +1665,7 @@ class RegionSelector:
                 top.attributes("-alpha", 0.28)
                 v["hole"] = None
             v["rect"] = cv.create_rectangle(0, 0, 0, 0, outline="#ff3b30",
-                                            width=2, state="hidden")
+                                            width=1, state="hidden")
             # 안내 문구(그림자 + 흰 글자)
             for dx, col in ((2, "black"), (0, "white")):
                 cv.create_text(vw // 2 + dx, 40 + dx, text=guide, fill=col,
@@ -1660,10 +1699,13 @@ class RegionSelector:
         master.wait_window(self.top)
 
     # ---------- 배경(어두운 화면 / 밝은 원본) ----------
-    def _backdrop(self, top, x, y, w, h):
+    def _backdrop(self, top, x, y, w, h, frozen=None):
         try:
-            with screen_grabber() as sct:
-                img = grab(sct, (x, y, w, h))
+            if frozen is not None:          # 캡처를 누른 순간의 화면
+                img = crop_frozen(frozen, (x, y, w, h))
+            else:
+                with screen_grabber() as sct:
+                    img = grab(sct, (x, y, w, h))
             rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             if rgb.shape[1] != w or rgb.shape[0] != h:     # Retina(2배) → 화면 좌표 크기
                 rgb = cv2.resize(rgb, (w, h), interpolation=cv2.INTER_AREA)
@@ -1703,7 +1745,7 @@ class RegionSelector:
             cv = v["cv"]
             lx1, ly1 = gx1 - v["ox"], gy1 - v["oy"]
             lx2, ly2 = gx2 - v["ox"], gy2 - v["oy"]
-            cv.coords(v["rect"], lx1, ly1, lx2, ly2)
+            cv.coords(v["rect"], lx1 - 1, ly1 - 1, lx2, ly2)   # 1px, 선택 영역 바깥
             cv.itemconfigure(v["rect"], state="normal")
             if v["hole"] is None:
                 continue
@@ -3408,9 +3450,23 @@ class App:
     def start_capture(self, mode):
         if self.busy:
             return
+        self._hidden = self.opt_hide.get()
+        # 캡처를 누른 '그 순간'의 화면을 가장 먼저 고정한다(마우스 오버 메뉴·영상 프레임 유지).
+        # 앱 창은 숨기면 지연이 생기므로, 찍는 순간에만 캡처에서 제외한다.
+        frozen = None
+        excl = self._hidden and self.root.state() == "normal"
+        try:
+            if excl:
+                set_main_capture_excluded(self.root, True)
+                time.sleep(0.05)
+            frozen = freeze_screen()
+        except Exception:
+            frozen = None
+        finally:
+            if excl:
+                set_main_capture_excluded(self.root, False)
         if IS_MAC:   # 단축키로 백그라운드에서 호출돼도 오버레이가 클릭을 받도록
             pm.activate_self()
-        self._hidden = self.opt_hide.get()
         if self._hidden:
             self.root.withdraw()
             self.root.update()
@@ -3421,7 +3477,8 @@ class App:
         hwnd = None
         if mode in ("scroll_region", "shot_region"):
             region = RegionSelector(self.root, multi=self.opt_multi.get(),
-                                    guide=self.t("guide_region")).result
+                                    guide=self.t("guide_region"),
+                                    frozen=frozen).result
         elif mode in ("scroll_display", "shot_display"):
             if self.opt_multi.get():
                 region = MonitorPicker(self.root,
@@ -3445,8 +3502,8 @@ class App:
         # ---- 즉시 캡처(스크롤 없음) ----
         if mode.startswith("shot_"):
             self.status.set(self.t("status_capturing"))
-            threading.Thread(target=self._worker_shot, args=(region, hwnd),
-                             daemon=True).start()
+            threading.Thread(target=self._worker_shot,
+                             args=(region, hwnd, frozen), daemon=True).start()
             return
 
         # ---- 스크롤 캡처 ----
@@ -3545,12 +3602,19 @@ class App:
             m = str(e)
             self.root.after(0, lambda: self._error(m))
 
-    def _worker_shot(self, region, hwnd=None):
-        """스크롤 없이 현재 화면을 한 번만 캡처(디스플레이/윈도우/영역/전체)."""
+    def _worker_shot(self, region, hwnd=None, frozen=None):
+        """스크롤 없이 한 번만 캡처(디스플레이/윈도우/영역/전체).
+        캡처를 누른 순간의 정지 화면이 있으면 거기서 잘라낸다(그 순간 그대로)."""
         try:
-            time.sleep(0.2)
             img = None
-            if hwnd and IS_MAC:            # macOS: 창만 직접 캡처(가려져 있어도, 그림자 제외)
+            if frozen is not None:
+                try:
+                    img = crop_frozen(frozen, region)
+                except Exception:
+                    img = None
+            if img is None:
+                time.sleep(0.2)
+            if img is None and hwnd and IS_MAC:   # macOS: 창만 직접 캡처
                 img = pm.grab_window(hwnd)
             if img is None:
                 if hwnd:                   # 윈도우 캡처: 대상 창을 앞으로
@@ -3905,6 +3969,12 @@ def _selftest(app, out_path):
         return img.shape
 
     check("grab", _grab)
+
+    def _freeze():
+        x, y, w, h = primary_screen()
+        return crop_frozen(freeze_screen(), (x + 10, y + 40, 200, 120)).shape
+
+    check("freeze_crop", _freeze)
     check("icons", lambda: len(app._icon_imgs))
     check("list_rows", lambda: len(app.list_inner.winfo_children()))
     check("hotkeys", lambda: {m: v[2] for m, v in app.hotkeys.items() if v})

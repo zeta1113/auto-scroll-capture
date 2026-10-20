@@ -31,6 +31,8 @@ Windows 11 / **macOS(12 Monterey 이상)**에서 **스크롤되는 영역의 전
   - **캡처 후 클립보드에 자동 복사**(기본 켜짐) — 저장과 동시에 이미지가 클립보드에 복사됨
   - **높이 분할 자르기** — 캡처 결과를 지정 높이(px)마다 잘라 여러 PNG로 저장(순번 `_01, _02…`)
   - **옵션 더보기/숨기기** — 옵션 영역을 접어 파일 목록 공간을 넓힘
+- ⏹ **스크롤 캡처 중지/취소** — 캡처 중 떠 있는 패널의 **[■ 중지]**(여기까지 저장) / **[취소]**(저장 안 함), **Esc** = 취소. 패널은 끌어서 옮길 수 있고 캡처 결과에 찍히지 않음
+- 🎯 **영역 지정** — 선택한 영역만 원래 밝기로(나머지는 어둡게), 가운데 공백 없는 흰색 줄 십자 포인터
 - 🖼 **파일 목록(썸네일)** — 캡처 결과를 프로그램 안에서 바로 확인 / 열기 / **클립보드 복사**
 - 🔄 **자동 업데이트 확인** — GitHub 릴리즈를 주기적으로 확인해 새 버전 알림(설정 시)
 - 💾 **설정 자동 저장** — 옵션·언어·저장 폴더를 기억(`%APPDATA%\ScrollCapture\settings.json`)
@@ -69,11 +71,12 @@ auto-capture/
 ## 릴리즈 정보
 
 - 최신 빌드 및 전체 이력은 [`release/RELEASES.md`](release/RELEASES.md) 참고.
-- 📥 **다운로드**: [최신 릴리스(v1.5.0)](https://github.com/zeta1113/auto-scroll-capture/releases/latest)
-  - Windows: `ScrollCapture_Setup_v1.5.0.exe`
-  - macOS: `ScrollCapture_mac_arm64_v1.5.0.dmg`(Apple Silicon) / `ScrollCapture_mac_x86_64_v1.5.0.dmg`(Intel)
+- 📥 **다운로드**: [최신 릴리스(v1.5.1)](https://github.com/zeta1113/auto-scroll-capture/releases/latest)
+  - Windows: `ScrollCapture_Setup_v1.5.1.exe`
+  - macOS: `ScrollCapture_mac_arm64_v1.5.1.dmg`(Apple Silicon) / `ScrollCapture_mac_x86_64_v1.5.1.dmg`(Intel)
 - 🔔 자동 업데이트: `GITHUB_REPO = "zeta1113/auto-scroll-capture"` 설정됨 — 새 릴리스가 올라오면 앱이 자동 감지해 알림
-- 현재 최신: **v1.5.0** — Windows `ScrollCapture_Setup_v1.5.0.exe` + macOS DMG(arm64/x86_64)
+- 현재 최신: **v1.5.1** — Windows `ScrollCapture_Setup_v1.5.1.exe` + macOS DMG(arm64/x86_64)
+  - v1.5.1: **스크롤 캡처 중지/취소 패널**([■ 중지]=여기까지 저장, [취소]/Esc=저장 안 함, 끌어서 이동, 캡처에 안 찍힘) · 영역 지정 시 **선택 영역만 밝게** 표시 · **흰색 줄 십자 포인터**(가운데 공백 없음)
   - v1.5.0: **macOS 지원**(Monterey 12/Ventura 13 이상, Apple Silicon·Intel) — Quartz 화면 캡처(Retina 2배 해상도), 포인터 이동 없는 스크롤, Option+Shift+1~7 전역 단축키, 창 직접 캡처. GitHub Actions 로 DMG 자동 빌드·점검
   - v1.4.19: 캡처 파일 목록 각 항목에 [삭제] 버튼 추가(빨간 글자, 확인 후 삭제)
   - v1.4.18: 옵션 더보기↔숨기기 토글 표시 수정 · 높이 분할 기본값 4000px · 파일 목록 스크롤바 표시(tk.Scrollbar)
