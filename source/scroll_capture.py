@@ -4100,10 +4100,27 @@ def copy_ndarray_to_clipboard(img_bgr):
         return False
 
 
+class _SelftestLog(list):
+    """자체 점검 결과: 한 줄 추가할 때마다 파일에 즉시 기록(멈추거나 죽어도 남도록)."""
+
+    def __init__(self, path):
+        super().__init__()
+        self.path = path
+
+    def append(self, line):
+        super().append(line)
+        try:
+            with open(self.path, "w", encoding="utf-8") as f:
+                f.write("\n".join(self) + "\n")
+        except Exception:
+            pass
+        print(line, flush=True)
+
+
 def _selftest(app, out_path):
     """빌드 검증용(CI): UI 생성 후 플랫폼 기능을 점검하고 결과를 기록한 뒤 종료.
     SCROLLCAPTURE_SELFTEST=<결과 파일 경로> 환경변수로 실행."""
-    lines, failed = [], False
+    lines, failed = _SelftestLog(out_path), False
 
     def check(name, fn):
         nonlocal failed
@@ -4271,8 +4288,10 @@ def _selftest(app, out_path):
 
         threading.Thread(target=drive, daemon=True).start()
         guard = app.root.after(12000, force_close)
+        lines.append("STEP region_drag: start")
         app.start_capture("shot_region")          # 선택이 끝날 때까지 대기
         app.root.after_cancel(guard)
+        lines.append("STEP region_drag: selection returned")
         lines.append(f"INFO overlay: {dict(LAST_OVERLAY_INFO)}")
         wait_file()
 
@@ -4302,6 +4321,7 @@ def _selftest(app, out_path):
                          daemon=True).start()
         guard = app.root.after(10000, force_close)
         t0 = time.time()
+        lines.append("STEP esc: start")
         app.start_capture("shot_region")
         app.root.after_cancel(guard)
         dt = time.time() - t0
@@ -4321,7 +4341,6 @@ def _selftest_finish(app, out_path, lines, failed):
             f.write("\n".join(lines) + "\n")
     except Exception:
         pass
-    print("\n".join(lines), flush=True)
     app.hotkeys_mgr.stop()
     app.root.destroy()
     os._exit(1 if failed else 0)
@@ -4331,6 +4350,9 @@ if __name__ == "__main__":
     _st = os.environ.get("SCROLLCAPTURE_SELFTEST")
     if _st:
         os.environ["SCROLLCAPTURE_NO_PERM_PROMPT"] = "1"
+        import faulthandler           # 멈추거나 죽으면 호출 위치를 stderr 로 출력
+        faulthandler.enable()
+        faulthandler.dump_traceback_later(100, exit=True)
     app = App()
     if _st:
         app.root.after(2500, lambda: _selftest(app, _st))
