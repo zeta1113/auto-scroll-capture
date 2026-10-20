@@ -3917,7 +3917,11 @@ class App:
 
     def _manual_result(self, info):
         if info is None:
-            messagebox.showwarning(self.t("info_title"), self.t("update_fail"))
+            msg = self.t("update_fail")
+            why = getattr(updater, "last_error", "")
+            if why:
+                msg = f"{msg}\n\n({why})"
+            messagebox.showwarning(self.t("info_title"), msg)
         elif info.get("newer"):
             self._on_update_found(info)
             ver = info.get("tag") or ".".join(map(str, info.get("version", ())))
@@ -4057,6 +4061,12 @@ def _selftest(app, out_path):
             lines.append(f"INFO https(default ssl): {type(e).__name__}: "
                          f"{str(e)[:120]}")
         check("https(updater ssl)", lambda: _https(updater.ssl_context()))
+        p = ssl.get_default_verify_paths()
+        lines.append(f"INFO ssl default cafile: {p.openssl_cafile} "
+                     f"exists={os.path.exists(p.openssl_cafile)}")
+        check("update_check", lambda: (lambda i: i["tag"] if i else
+                                       updater.last_error)(
+            updater.check_latest(GITHUB_REPO, APP_VERSION)))
 
     # 실제 키(F19)를 보내 전역 단축키 → 메인 루프 처리까지 확인
     # (예전 macOS 크래시: 단축키 콜백에서 Tk 호출 → 다음 after 콜백에서 abort)

@@ -119,7 +119,7 @@ jobs:
         run: |
           OUT="$PWD/selftest_${{ matrix.arch }}.txt"
           SCROLLCAPTURE_SELFTEST="$OUT" build/mac/dist/ScrollCapture.app/Contents/MacOS/ScrollCapture
-          echo "::notice title=selftest ${{ matrix.arch }}::$(grep -c '^OK' "$OUT") OK, $(grep -c '^FAIL' "$OUT") FAIL — $(grep -E 'https|hotkey_fired|clipboard|permissions' "$OUT" | tr '\n' ' ')"
+          echo "::notice title=selftest ${{ matrix.arch }}::$(grep -c '^OK' "$OUT") OK, $(grep -c '^FAIL' "$OUT") FAIL — $(grep -E 'https|cafile|update_check|hotkey_fired' "$OUT" | tr '\n' ' ')"
           grep '^FAIL' "$OUT" | while IFS= read -r line; do echo "::error title=selftest ${{ matrix.arch }}::$line"; done || true
 
       - uses: actions/upload-artifact@v4

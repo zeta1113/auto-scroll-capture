@@ -41,6 +41,9 @@ def _asset_matches(name):
     return name.endswith(".exe")
 
 
+last_error = ""   # 마지막 확인 실패 이유
+
+
 def ssl_context():
     """HTTPS 인증서 검증용 컨텍스트.
     macOS 앱에 포함된 python.org Python 은 시스템 인증서를 읽지 못하므로
@@ -60,11 +63,14 @@ def check_latest(repo, current_version, timeout=6):
         "Accept": "application/vnd.github+json",
         "User-Agent": "ScrollCapture-Updater",
     })
+    global last_error
+    last_error = ""
     try:
         with urllib.request.urlopen(req, timeout=timeout,
                                     context=ssl_context()) as r:
             data = json.load(r)
-    except Exception:
+    except Exception as e:
+        last_error = f"{type(e).__name__}: {e}"[:200]   # 실패 이유(안내창 표시용)
         return None
 
     tag = data.get("tag_name") or data.get("name") or ""

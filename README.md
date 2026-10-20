@@ -72,11 +72,12 @@ auto-capture/
 ## 릴리즈 정보
 
 - 최신 빌드 및 전체 이력은 [`release/RELEASES.md`](release/RELEASES.md) 참고.
-- 📥 **다운로드**: [최신 릴리스(v1.5.2)](https://github.com/zeta1113/auto-scroll-capture/releases/latest)
-  - Windows: `ScrollCapture_Setup_v1.5.2.exe`
-  - macOS: `ScrollCapture_mac_arm64_v1.5.2.dmg`(Apple Silicon) / `ScrollCapture_mac_x86_64_v1.5.2.dmg`(Intel)
+- 📥 **다운로드**: [최신 릴리스(v1.5.3)](https://github.com/zeta1113/auto-scroll-capture/releases/latest)
+  - Windows: `ScrollCapture_Setup_v1.5.3.exe`
+  - macOS: `ScrollCapture_mac_arm64_v1.5.3.dmg`(Apple Silicon) / `ScrollCapture_mac_x86_64_v1.5.3.dmg`(Intel)
 - 🔔 자동 업데이트: `GITHUB_REPO = "zeta1113/auto-scroll-capture"` 설정됨 — 새 릴리스가 올라오면 앱이 자동 감지해 알림
-- 현재 최신: **v1.5.2** — Windows `ScrollCapture_Setup_v1.5.2.exe` + macOS DMG(arm64/x86_64)
+- 현재 최신: **v1.5.3** — Windows `ScrollCapture_Setup_v1.5.3.exe` + macOS DMG(arm64/x86_64)
+  - v1.5.3: **macOS 업데이트 확인 실패 수정**(앱에 certifi 인증서 묶음 포함 → GitHub HTTPS 인증서 확인) · 업데이트 확인 실패 시 이유 표시
   - v1.5.2: **macOS 단축키를 누르면 앱이 종료되던 문제 수정**(Carbon 콜백에서 Tk 호출 금지 → 큐 + 메인 루프 처리) · 선택 화면 중복 열림 방지 · CI 자체 점검에 실제 키 입력 단축키 확인 추가
   - v1.5.1: **스크롤 캡처 중지/취소 패널**([■ 중지]=여기까지 저장, [취소]/Esc=저장 안 함, 끌어서 이동, 캡처에 안 찍힘) · 영역 지정 시 **선택 영역만 밝게** 표시(테두리 1px) · **흰색 줄 십자 포인터**(가운데 공백 없음) · **캡처를 누른 순간 화면 고정**(마우스 오버 메뉴·영상 프레임 유지)
   - v1.5.0: **macOS 지원**(Monterey 12/Ventura 13 이상, Apple Silicon·Intel) — Quartz 화면 캡처(Retina 2배 해상도), 포인터 이동 없는 스크롤, Option+Shift+1~7 전역 단축키, 창 직접 캡처. GitHub Actions 로 DMG 자동 빌드·점검
