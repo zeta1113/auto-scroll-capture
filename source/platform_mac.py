@@ -399,22 +399,38 @@ def _cursor_pos():
     return (p.x, p.y)
 
 
+_pointer_home = [None]     # 휠 스크롤 전 포인터 위치(캡처가 끝나면 복원)
+
+
 def scroll_wheel(cx, cy, notches):
-    """최후 수단: 포인터를 잠깐 영역 위로 옮겨 실제 휠 이벤트 전송 후 원위치."""
-    orig = _cursor_pos()
-    try:
+    """포인터를 영역 위로 옮겨 실제 휠 이벤트 전송.
+    (스크롤마다 왕복하지 않도록 포인터는 그 자리에 두고, 캡처가 끝나면
+     restore_pointer() 로 한 번만 원위치)"""
+    pos = _cursor_pos()
+    if _pointer_home[0] is None:
+        _pointer_home[0] = pos
+    if abs(pos[0] - cx) > 1 or abs(pos[1] - cy) > 1:
         Quartz.CGWarpMouseCursorPosition(Quartz.CGPointMake(cx, cy))
-        time.sleep(0.03)
-        n = abs(int(notches)) or 1
-        step = 1 if notches > 0 else -1
-        for _ in range(n):
-            Quartz.CGEventPost(Quartz.kCGHIDEventTap,
-                               _scroll_event(cx, cy, step))
-            time.sleep(0.012)
-        time.sleep(0.05)
-    finally:
-        Quartz.CGWarpMouseCursorPosition(Quartz.CGPointMake(*orig))
         Quartz.CGAssociateMouseAndMouseCursorPosition(True)
+        time.sleep(0.03)
+    n = abs(int(notches)) or 1
+    step = 1 if notches > 0 else -1
+    for _ in range(n):
+        Quartz.CGEventPost(Quartz.kCGHIDEventTap, _scroll_event(cx, cy, step))
+        time.sleep(0.012)
+    time.sleep(0.05)
+
+
+def restore_pointer():
+    """휠 스크롤로 옮겼던 포인터를 원래 위치로(캡처 종료 시 1회)."""
+    home = _pointer_home[0]
+    _pointer_home[0] = None
+    if home is not None:
+        try:
+            Quartz.CGWarpMouseCursorPosition(Quartz.CGPointMake(*home))
+            Quartz.CGAssociateMouseAndMouseCursorPosition(True)
+        except Exception:
+            pass
 
 
 def key_page(ref, down):

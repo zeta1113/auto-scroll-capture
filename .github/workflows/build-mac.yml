@@ -88,7 +88,7 @@ jobs:
 
       - name: Engine test (scroll capture on a test window)
         continue-on-error: true
-        timeout-minutes: 12
+        timeout-minutes: 25
         run: |
           python tools/engine_test.py "engine_test_${{ matrix.arch }}.png" 2>&1 | tee engine_${{ matrix.arch }}.txt
           echo "::notice title=engine ${{ matrix.arch }}::$(grep -E 'result:|PASS|FAIL' engine_${{ matrix.arch }}.txt | tr '\n' ' ')"
@@ -97,6 +97,11 @@ jobs:
           echo "::notice title=engine-stop ${{ matrix.arch }}::$(grep -E 'result:|stopped|PASS|FAIL' engine_stop_${{ matrix.arch }}.txt | tr '\n' ' ')"
           python tools/engine_test.py "engine_cancel_${{ matrix.arch }}.png" --cancel-after 6 2>&1 | tee engine_cancel_${{ matrix.arch }}.txt
           echo "::notice title=engine-cancel ${{ matrix.arch }}::$(grep -E 'cancel|PASS|FAIL' engine_cancel_${{ matrix.arch }}.txt | tr '\n' ' ')"
+          # 고정(sticky) 바가 중간부터 붙는 창 / 실제 Chrome 페이지 — 줄 표식으로 빠짐·중복 검사
+          python tools/engine_test.py "engine_sticky_${{ matrix.arch }}.png" --sticky 2>&1 | tee engine_sticky_${{ matrix.arch }}.txt
+          echo "::notice title=engine-sticky ${{ matrix.arch }}::$(grep -E 'result:|lines:|PASS|FAIL' engine_sticky_${{ matrix.arch }}.txt | tr '\n' ' ')"
+          python tools/engine_test.py "engine_chrome_${{ matrix.arch }}.png" --chrome 2>&1 | tee engine_chrome_${{ matrix.arch }}.txt
+          echo "::notice title=engine-chrome ${{ matrix.arch }}::$(grep -E 'region|result:|lines:|PASS|FAIL|SKIP|Error' engine_chrome_${{ matrix.arch }}.txt | tr '\n' ' ')"
 
       - name: Build app + DMG
         run: |

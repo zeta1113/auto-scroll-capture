@@ -721,6 +721,11 @@ SCROLL_NOTCHES_TOP = 5   # 상단으로 빠르게 이동할 때 노치
 RENDER_WAIT = 0.35       # 스크롤 후 렌더링 대기(초)
 GA_ROOT = 2
 METHODS = ["wheel", "send", "key"]  # 스크롤 방식 우선순위
+METHOD_STATS = {}   # 실제로 화면을 움직인 스크롤 방식 횟수(진단용)
+
+
+def _count_method(m):
+    METHOD_STATS[m] = METHOD_STATS.get(m, 0) + 1
 
 
 # ==================================================================
@@ -990,6 +995,7 @@ def scroll_to_top(sct, region, hwnd, cx, cy, notches, wait, park=None):
                 moved = True
                 pref = METHODS.index(m)
                 prev = cur
+                _count_method(m)
                 break
         if not moved:
             stagnant += 1
@@ -1029,15 +1035,19 @@ def _content_span(changed, win=32, frac=0.4):
     return best if best[1] >= best[0] else None
 
 
-def measure_fixed_regions(sct, region, hwnd, cx, cy, notches, wait, park=None):
+def measure_fixed_regions(sct, region, hwnd, cx, cy, notches, wait, park=None,
+                          restore=True):
     """
     스크롤해도 변하지 않는 고정 영역을 감지:
       - 상단(헤더)/하단(고정 바): 가로 밴드 높이 (top, bot)
       - 좌/우 고정 메뉴 + 스크롤바: 세로 밴드 폭 (left, right)  ← 변경된 '행 비율'로 판단해
         썸(thumb)만 움직이는 스크롤바도 포착
-    감지 후 원래 위치로 복원한다. 좌/우 밴드의 배경색도 함께 반환.
+    감지 후 원래 위치로 복원한다(restore=False 면 복원하지 않고, 실제로 움직인
+    프레임들을 'moved' 로 돌려줘 본 캡처에 그대로 이어 쓴다 → 위아래 왕복 없음).
+    좌/우 밴드의 배경색도 함께 반환.
     """
     frames = [grab(sct, region)]
+    moved = [frames[0]]
     downs = 0
     for _ in range(3):
         _check_abort()
@@ -1049,11 +1059,13 @@ def measure_fixed_regions(sct, region, hwnd, cx, cy, notches, wait, park=None):
             if not images_equal(frames[-1], f):
                 got = f
                 downs += 1
+                moved.append(f)
+                _count_method(m)
                 break
         frames.append(got if got is not None else grab(sct, region))
 
     # 원래 위치로 복원
-    for _ in range(downs):
+    for _ in range(downs if restore else 0):
         before = grab(sct, region)
         for m in METHODS:
             apply_scroll(hwnd, cx, cy, m, down=False, notches=notches, park=park)
@@ -1137,7 +1149,8 @@ def measure_fixed_regions(sct, region, hwnd, cx, cy, notches, wait, park=None):
                 if right else None)
 
     return {"top": top, "bot": bot, "left": left, "right": right,
-            "left_bg": left_bg, "right_bg": right_bg, "sticky": sticky}
+            "left_bg": left_bg, "right_bg": right_bg, "sticky": sticky,
+            "moved": moved, "downs": downs}
 
 
 def _scroll_down_n(sct, region, hwnd, cx, cy, notches, wait, park, n):
@@ -1259,6 +1272,8 @@ def capture_scrolling_region(region, status_cb, opts=None):
         return _capture_scrolling_region(region, status_cb, opts)
     finally:
         _CTL = None
+        if IS_MAC:
+            pm.restore_pointer()     # 휠 방식으로 옮겼던 포인터를 원위치로
 
 
 def _capture_scrolling_region(region, status_cb, opts):
@@ -1285,7 +1300,10 @@ def _capture_scrolling_region(region, status_cb, opts):
 
     # 커서를 움직이지 않는 방식(send/key: 대상 창에 직접 스크롤 메시지)을 우선하고,
     # 이 방식들이 안 먹히는 창에서만 마지막으로 wheel(커서 위치 필요)을 쓴다.
-    METHODS[:] = ["send", "key", "wheel"]
+    # macOS: PageDown 은 한 번에 너무 많이 내려가 정합이 깨지므로 휠(포인터 한 번 이동)을 우선
+    METHODS[:] = (["send", "wheel", "key"] if IS_MAC
+                  else ["send", "key", "wheel"])
+    METHOD_STATS.clear()
 
     if IS_MAC:
         hwnd = pm.window_at_point(cx, cy)
@@ -1315,12 +1333,17 @@ def _capture_scrolling_region(region, status_cb, opts):
             status_cb(S.get("status_moving_top", "상단으로 이동 중..."))
             pref = scroll_to_top(sct, region, hwnd, cx, cy, top_notches, wait, park=park)
 
-        # ---------- 1-b) 고정 상/하/좌/우 영역 감지 (위치 복원) ----------
+        # ---------- 1-b) 고정 상/하/좌/우 영역 감지 ----------
+        # 깊은 sticky 감지(옵션)가 없으면 감지하며 내려간 프레임을 본 캡처에 그대로 이어 쓴다
+        # (다시 위로 올라가지 않음). 옵션이 켜져 있으면 예전처럼 위치를 복원한다.
         status_cb(S.get("status_detecting", "고정 영역 감지 중..."))
-        reg = measure_fixed_regions(sct, region, hwnd, cx, cy, notches, wait, park=park)
+        replay_mode = not handle_sticky
+        reg = measure_fixed_regions(sct, region, hwnd, cx, cy, notches, wait,
+                                    park=park, restore=not replay_mode)
         top_band, bot_band = reg["top"], reg["bot"]
         left_band, right_band = reg["left"], reg["right"]
-        if auto_top:
+        replay = reg["moved"] if replay_mode else None
+        if auto_top and not replay_mode:
             pref = scroll_to_top(sct, region, hwnd, cx, cy, top_notches, wait, park=park)
 
         # 고정 상단(헤더)은 맨 위 1회, 고정 하단(트레이바 등)은 메모리에 보관 후 맨 아래에 덮음
@@ -1328,7 +1351,7 @@ def _capture_scrolling_region(region, status_cb, opts):
             top_band = -(-top_band // sc) * sc if top_band > 0 else 0
             bot_band = -(-bot_band // sc) * sc if bot_band > 0 else 0
         H_full = h
-        full0 = grab(sct, region)
+        full0 = replay[0] if replay else grab(sct, region)
         if top_band > 0:
             header_img = full0[0:top_band].copy()
         if bot_band > 0:
@@ -1355,7 +1378,11 @@ def _capture_scrolling_region(region, status_cb, opts):
         # ---------- 2) 아래로 스크롤하며 캡처 (composite 덮어쓰기) ----------
         SCORE_THR = 0.5
         status_cb(S.get("status_capturing", "캡처 중..."))
-        canvas = grab(sct, region)
+
+        def inner(f):   # 측정 프레임(전체 영역) → 고정 상/하단을 뺀 본 캡처 영역
+            return np.ascontiguousarray(f[top_band:H_full - bot_band])
+
+        canvas = inner(replay[0]) if replay else grab(sct, region)
         # 좌/우 밴드가 흰 여백까지 물어 콘텐츠를 자르지 않도록 실제 내용 경계까지 축소
         if left_band > 0:
             left_band = _trim_left_band(canvas, left_band)
@@ -1430,6 +1457,8 @@ def _capture_scrolling_region(region, status_cb, opts):
             # 콘텐츠 열만(정렬·변화감지용) + sticky 상단 제외
             return fr[sticky_base:h, cl:cr]
 
+        last_place = {"off": None, "st": 0, "bak": None}
+
         def place(frame, d, st=None):
             # 콘텐츠 열(cl:cr)과 상단 sticky(st)를 제외하고 덮어씀.
             # 좌측 밴드는 '첫 컷(사이드바)과 다른 행 = 실제 내용'만 복원(전체폭 표/footer 살림).
@@ -1445,7 +1474,21 @@ def _capture_scrolling_region(region, status_cb, opts):
                 canvas = np.vstack([canvas,
                                     np.zeros((add, canvas.shape[1], 3), canvas.dtype)])
                 left_mask = np.concatenate([left_mask, np.zeros(add, bool)])
+            # 고정 메뉴가 '처음 나타난' 직전 컷은 메뉴를 그대로 찍었으므로(그땐 감지 불가),
+            # 이번에 감지된 높이만큼 그 자리를 덮기 전 내용(백업)으로 되돌린다.
+            # (좌측 고정 메뉴 열에 남은 조각까지 전체 폭으로 복원)
+            lp = last_place
+            if st > lp["st"] and lp["bak"] is not None:
+                bk, bm = lp["bak"]
+                a, b = lp["st"], min(st, bk.shape[0])
+                if b > a:
+                    canvas[lp["off"] + a:lp["off"] + b] = bk[a:b]
+                    left_mask[lp["off"] + a:lp["off"] + b] = bm[a:b]
+            n_bak = min(h // 2, h - d) if lp["off"] is not None else 0
+            bak = ((canvas[offset:offset + n_bak].copy(),
+                    left_mask[offset:offset + n_bak].copy()) if n_bak > 0 else None)
             canvas[offset + st:offset + h, cl:cr] = frame[st:h, cl:cr]
+            last_place.update(off=offset, st=st, bak=bak)
             if left_band and first_left is not None:
                 seg = frame[st:h, :left_band]
                 dl = np.mean(np.abs(seg.astype(np.int16)
@@ -1468,6 +1511,42 @@ def _capture_scrolling_region(region, status_cb, opts):
                 return True
             return False
 
+        # 고정 영역 감지 때 내려가며 찍은 프레임을 이어 붙인다(다시 올라가지 않음).
+        # 정합이 안 되면 그만큼 위로 되돌아가 예전 방식으로 처음부터.
+        if replay:
+            ok = True
+            for f in replay[1:]:
+                cur = inner(f)
+                st = max(sticky_base, _sticky_rows(prev, cur, cl, cr, h))
+                delta, score = find_delta(prev[st:h, cl:cr], cur[st:h, cl:cr],
+                                          max_frac=0.6)
+                if 2 < delta <= h - st and score >= SCORE_THR:
+                    place(cur, delta, st)
+                    prev = cur
+                    last_delta = delta
+                    sticky_seen = max(sticky_seen, st)
+                else:
+                    ok = False
+                    break
+            if not ok:
+                for _ in range(reg.get("downs", 0)):
+                    for m in METHODS:
+                        apply_scroll(hwnd, cx, cy, m, down=False, notches=notches,
+                                     park=park)
+                        time.sleep(wait)
+                        break
+                if auto_top:
+                    scroll_to_top(sct, region, hwnd, cx, cy, top_notches, wait,
+                                  park=park)
+                canvas = grab(sct, region)
+                prev = canvas.copy()
+                offset = 0
+                first_off = None
+                left_mask = np.zeros(canvas.shape[0], bool)
+                last_delta = 0
+                sticky_seen = 0
+                last_place.update(off=None, st=0, bak=None)
+
         for _ in range(8000):
             if halted():
                 break
@@ -1482,14 +1561,14 @@ def _capture_scrolling_region(region, status_cb, opts):
                 apply_scroll(hwnd, cx, cy, m, down=True, notches=notches, park=park)
                 time.sleep(wait)
                 cur = grab(sct, region)
-                st = sticky_base
-                if handle_sticky:
-                    st = max(sticky_base, _sticky_rows(before, cur, cl, cr, h))
+                # 매 스텝 '이전/현재 프레임 상단의 같은 내용' = 고정(sticky) 메뉴 → 제외
+                st = max(sticky_base, _sticky_rows(before, cur, cl, cr, h))
                 delta, score = find_delta(
                     before[st:h, cl:cr], cur[st:h, cl:cr], max_frac=0.6)
                 if 2 < delta <= h - st and score >= SCORE_THR:
                     best = (cur, delta, st)
                     pref = METHODS.index(m)
+                    _count_method(m)
                     break
             if ctl is not None and ctl.stopped:
                 break
