@@ -53,3 +53,4 @@
 | v1.5.3 | 2026-10-20 16:26:10 | 설치 파일(Setup) | `ScrollCapture_Setup_v1.5.3.exe` | 73.0 MB |
 | v1.5.4 | 2026-10-20 17:06:27 | 설치 파일(Setup) | `ScrollCapture_Setup_v1.5.4.exe` | 73.0 MB |
 | v1.5.5 | 2026-10-21 14:16:04 | 설치 파일(Setup) | `ScrollCapture_Setup_v1.5.5.exe` | 73.0 MB |
+| v1.5.6 | 2026-10-21 14:56:26 | 설치 파일(Setup) | `ScrollCapture_Setup_v1.5.6.exe` | 73.0 MB |

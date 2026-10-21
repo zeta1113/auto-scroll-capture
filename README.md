@@ -72,11 +72,12 @@ auto-capture/
 ## 릴리즈 정보
 
 - 최신 빌드 및 전체 이력은 [`release/RELEASES.md`](release/RELEASES.md) 참고.
-- 📥 **다운로드**: [최신 릴리스(v1.5.5)](https://github.com/zeta1113/auto-scroll-capture/releases/latest)
-  - Windows: `ScrollCapture_Setup_v1.5.5.exe`
-  - macOS: `ScrollCapture_mac_arm64_v1.5.5.dmg`(Apple Silicon) / `ScrollCapture_mac_x86_64_v1.5.5.dmg`(Intel)
+- 📥 **다운로드**: [최신 릴리스(v1.5.6)](https://github.com/zeta1113/auto-scroll-capture/releases/latest)
+  - Windows: `ScrollCapture_Setup_v1.5.6.exe`
+  - macOS: `ScrollCapture_mac_arm64_v1.5.6.dmg`(Apple Silicon) / `ScrollCapture_mac_x86_64_v1.5.6.dmg`(Intel)
 - 🔔 자동 업데이트: `GITHUB_REPO = "zeta1113/auto-scroll-capture"` 설정됨 — 새 릴리스가 올라오면 앱이 자동 감지해 알림
-- 현재 최신: **v1.5.5** — Windows `ScrollCapture_Setup_v1.5.5.exe` + macOS DMG(arm64/x86_64)
+- 현재 최신: **v1.5.6** — Windows `ScrollCapture_Setup_v1.5.6.exe` + macOS DMG(arm64/x86_64)
+  - v1.5.6: **고정(sticky) 메뉴 반복·내용 누락 해결**(매 스텝 감지 항상 적용 + 첫 등장 시 복원) · **캡처 전 위아래 왕복 제거**(감지 프레임 이어 쓰기) · macOS 휠 스크롤 시 **포인터 왕복 제거**·첫 휠 무시로 인한 누락 해결 · 줄 표식 기반 자동 검증(실제 Chrome 포함)
   - v1.5.5: macOS 영역 지정 시 직접 그린 십자선 대신 **시스템 십자 포인터** 사용 → 포인터 지연 해소
   - v1.5.4: **macOS 영역 선택 화면 수정** — 십자 포인터 무반응·드래그 멈춤·Esc 무반응 해결(마우스/키 직접 감지), 오버레이가 Dock·메뉴 막대까지 덮음 · CI 자체 점검에 실제 마우스 드래그/Esc 테스트 추가
   - v1.5.3: **macOS 업데이트 확인 실패 수정**(앱에 certifi 인증서 묶음 포함 → GitHub HTTPS 인증서 확인) · 업데이트 확인 실패 시 이유 표시
