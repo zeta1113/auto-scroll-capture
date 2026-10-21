@@ -1664,8 +1664,11 @@ class RegionSelector:
             top.overrideredirect(True)
             top.geometry(f"{vw}x{vh}+{vx}+{vy}")
             top.attributes("-topmost", True)
-            top.configure(bg="black", cursor="none")
-            cv = tk.Canvas(top, highlightthickness=0, bg="black", cursor="none")
+            # 포인터: Windows 는 직접 그린 흰색 줄 십자(시스템 포인터 숨김),
+            # macOS 는 시스템 십자 포인터(하드웨어가 그려 지연 없음)
+            cur = "crosshair" if IS_MAC else "none"
+            top.configure(bg="black", cursor=cur)
+            cv = tk.Canvas(top, highlightthickness=0, bg="black", cursor=cur)
             cv.pack(fill="both", expand=True)
             v = {"cv": cv, "ox": vx, "oy": vy, "w": vw, "h": vh}
             bright, dark = self._backdrop(top, vx, vy, vw, vh, frozen)
@@ -1685,10 +1688,11 @@ class RegionSelector:
                 cv.create_text(vw // 2 + dx, 40 + dx, text=guide, fill=col,
                                font=(UI_FONT, 16, "bold"))
             # 줄 십자 포인터: 검은 테두리(3px) 위에 흰 선(1px) — 흰 배경에서도 보이게
-            v["cross"] = [cv.create_line(0, 0, 0, 0, fill="black", width=3),
-                          cv.create_line(0, 0, 0, 0, fill="black", width=3),
-                          cv.create_line(0, 0, 0, 0, fill="white", width=1),
-                          cv.create_line(0, 0, 0, 0, fill="white", width=1)]
+            v["cross"] = [] if IS_MAC else [
+                cv.create_line(0, 0, 0, 0, fill="black", width=3),
+                cv.create_line(0, 0, 0, 0, fill="black", width=3),
+                cv.create_line(0, 0, 0, 0, fill="white", width=1),
+                cv.create_line(0, 0, 0, 0, fill="white", width=1)]
             if not IS_MAC:
                 # Windows: Tk 마우스 이벤트 사용
                 cv.bind("<Motion>", self._hover)
@@ -1760,6 +1764,8 @@ class RegionSelector:
         LAST_OVERLAY_INFO["cross"] = (int(gx), int(gy))
         L = self.CROSS
         for v in self.views:
+            if not v["cross"]:              # macOS: 시스템 포인터 사용(그리지 않음)
+                continue
             x, y = gx - v["ox"], gy - v["oy"]
             hb, vb, hw, vw_ = v["cross"]
             cv = v["cv"]
