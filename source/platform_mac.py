@@ -412,7 +412,15 @@ def scroll_wheel(cx, cy, notches):
     if abs(pos[0] - cx) > 1 or abs(pos[1] - cy) > 1:
         Quartz.CGWarpMouseCursorPosition(Quartz.CGPointMake(cx, cy))
         Quartz.CGAssociateMouseAndMouseCursorPosition(True)
-        time.sleep(0.03)
+        # 포인터가 그 위에 있다는 걸 앱(Chrome 등)이 알도록 이동 신호를 보내고 잠깐 대기
+        # (없으면 첫 휠 스크롤이 무시되기도 함)
+        try:
+            Quartz.CGEventPost(Quartz.kCGHIDEventTap, Quartz.CGEventCreateMouseEvent(
+                None, Quartz.kCGEventMouseMoved, Quartz.CGPointMake(cx, cy),
+                Quartz.kCGMouseButtonLeft))
+        except Exception:
+            pass
+        time.sleep(0.15)
     n = abs(int(notches)) or 1
     step = 1 if notches > 0 else -1
     for _ in range(n):
@@ -433,16 +441,21 @@ def restore_pointer():
             pass
 
 
-def key_page(ref, down):
-    """PageDown / PageUp 키를 대상 앱에 전달."""
-    kc = KC_PAGE_DOWN if down else KC_PAGE_UP
-    for is_down in (True, False):
-        ev = Quartz.CGEventCreateKeyboardEvent(None, kc, is_down)
-        if ref is not None:
-            Quartz.CGEventPostToPid(ref.pid, ev)
-        else:
-            Quartz.CGEventPost(Quartz.kCGHIDEventTap, ev)
-        time.sleep(0.02)
+KC_DOWN, KC_UP = 125, 126
+
+
+def key_page(ref, down, notches=1):
+    """방향키(↓/↑)를 notches×2 번 대상 앱에 전달.
+    (PageDown 은 한 번에 화면 대부분을 넘겨 이어 붙이기가 깨지므로 작은 단위로)"""
+    kc = KC_DOWN if down else KC_UP
+    for _ in range(max(1, abs(int(notches)) * 2)):
+        for is_down in (True, False):
+            ev = Quartz.CGEventCreateKeyboardEvent(None, kc, is_down)
+            if ref is not None:
+                Quartz.CGEventPostToPid(ref.pid, ev)
+            else:
+                Quartz.CGEventPost(Quartz.kCGHIDEventTap, ev)
+            time.sleep(0.015)
 
 
 def post_key(kc):
@@ -460,7 +473,7 @@ def apply_scroll(ref, cx, cy, method, down, notches):
         elif method == "wheel":
             scroll_wheel(cx, cy, -notches if down else notches)
         else:
-            key_page(ref, down)
+            key_page(ref, down, notches)
     except Exception:
         pass
 

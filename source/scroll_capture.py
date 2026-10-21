@@ -1529,12 +1529,15 @@ def _capture_scrolling_region(region, status_cb, opts):
                     ok = False
                     break
             if not ok:
+                # 감지 때 내려간 만큼 되돌아감(실제로 움직이는 방식으로)
                 for _ in range(reg.get("downs", 0)):
+                    b0 = grab(sct, region)
                     for m in METHODS:
                         apply_scroll(hwnd, cx, cy, m, down=False, notches=notches,
                                      park=park)
                         time.sleep(wait)
-                        break
+                        if not images_equal(b0, grab(sct, region)):
+                            break
                 if auto_top:
                     scroll_to_top(sct, region, hwnd, cx, cy, top_notches, wait,
                                   park=park)
