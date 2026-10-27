@@ -1361,8 +1361,10 @@ def _capture_scrolling_region(region, status_cb, opts):
     # 이 방식들이 안 먹히는 창에서만 마지막으로 wheel(커서 위치 필요)을 쓴다.
     # 포인터를 옮기지 않는 방식 우선: 직접 전달(send) → (macOS) 위치 지정 휠(hid) → 방향키(key)
     # → 최후에만 실제 휠(wheel: 포인터를 잠깐 옮겼다 즉시 원위치)
-    METHODS[:] = (["send", "hid", "key", "wheel"] if IS_MAC
+    METHODS[:] = (["send", "key", "hid", "wheel"] if IS_MAC
                   else ["send", "key", "wheel"])
+    if os.environ.get("SCROLLCAPTURE_METHODS"):     # 진단용: 방식 강제 지정
+        METHODS[:] = os.environ["SCROLLCAPTURE_METHODS"].split(",")
     METHOD_STATS.clear()
 
     if IS_MAC:

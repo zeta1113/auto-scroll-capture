@@ -413,10 +413,30 @@ def scroll_hid(cx, cy, notches, ref=None):
             return
     except Exception:
         pass
+    # 위치를 지정한 휠 이벤트도 시스템(HID) 단계에서는 포인터를 그 위치로 옮긴다
+    # → 보낸 뒤 즉시 원위치
+    home = _cursor_pos()
+    n = abs(int(notches)) or 1
+    step = 1 if notches > 0 else -1
+    try:
+        for _ in range(n):
+            Quartz.CGEventPost(Quartz.kCGHIDEventTap, _scroll_event(cx, cy, step))
+            time.sleep(0.012)
+        time.sleep(0.04)
+    finally:
+        cur = _cursor_pos()
+        if abs(cur[0] - home[0]) > 1 or abs(cur[1] - home[1]) > 1:
+            Quartz.CGWarpMouseCursorPosition(Quartz.CGPointMake(*home))
+            Quartz.CGAssociateMouseAndMouseCursorPosition(True)
+
+
+def scroll_session(cx, cy, notches, ref=None):
+    """세션 단계로 보내는 위치 지정 휠(포인터 갱신 없이 전달되는지 실험용)."""
     n = abs(int(notches)) or 1
     step = 1 if notches > 0 else -1
     for _ in range(n):
-        Quartz.CGEventPost(Quartz.kCGHIDEventTap, _scroll_event(cx, cy, step))
+        Quartz.CGEventPost(Quartz.kCGSessionEventTap,
+                           _scroll_event(cx, cy, step, ref))
         time.sleep(0.012)
 
 
@@ -482,6 +502,8 @@ def apply_scroll(ref, cx, cy, method, down, notches):
             scroll_send(ref, cx, cy, -notches if down else notches)
         elif method == "hid":
             scroll_hid(cx, cy, -notches if down else notches, ref)
+        elif method == "sess":
+            scroll_session(cx, cy, -notches if down else notches, ref)
         elif method == "wheel":
             scroll_wheel(cx, cy, -notches if down else notches)
         else:
