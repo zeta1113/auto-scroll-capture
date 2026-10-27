@@ -998,35 +998,39 @@ def _check_abort():
 # ==================================================================
 # 캡처 엔진
 # ==================================================================
-def calibrate_direction(sct, region, hwnd, cx, cy, notches, wait):
-    """(macOS) 스크롤 방향 확인: '아래로'를 보냈는데 페이지가 위로 가면(마우스 방향 반전
-    유틸 등) 방향을 뒤집는다. 맨 위라 아래로만 움직일 수 있는 경우도 '위로' 시험으로 판정."""
-    if not IS_MAC:
-        return
-    for m in [x for x in METHODS if x != "key"]:
+def probe_methods(sct, region, hwnd, cx, cy, notches, wait):
+    """캡처 시작 시 실제로 동작하는 스크롤 방식을 먼저 찾는다.
+    - 포인터를 옮기지 않는 방식(send/hid/key)이 동작하면 이번 캡처에서는 휠(wheel:
+      포인터를 잠깐 옮김)을 아예 쓰지 않는다 → 맨 위/맨 끝 확인 중에도 포인터가 안 움직임
+    - (macOS) '아래로'를 보냈는데 위로 가면 스크롤 방향을 뒤집는다(방향 반전 유틸 대응)
+    시험으로 움직인 만큼은 되돌려 놓는다."""
+    free = [m for m in METHODS if m != "wheel"]
+    tries = [(m, d) for m in free for d in (True, False)]
+    if "wheel" in METHODS:
+        tries += [("wheel", True), ("wheel", False)]
+    for m, down in tries:
+        _check_abort()
         a = grab(sct, region)
-        apply_scroll(hwnd, cx, cy, m, down=True, notches=notches)
+        apply_scroll(hwnd, cx, cy, m, down=down, notches=notches)
         time.sleep(wait)
         b = grab(sct, region)
-        if not images_equal(a, b):
-            if _moved_down(a, b):
-                apply_scroll(hwnd, cx, cy, m, down=False, notches=notches)   # 원위치
-            elif _moved_down(b, a):
-                pm.SCROLL_SIGN[0] *= -1                                     # 반대 → 보정
-                apply_scroll(hwnd, cx, cy, m, down=True, notches=notches)    # 원위치
-            time.sleep(wait)
-            return
-        apply_scroll(hwnd, cx, cy, m, down=False, notches=notches)
+        if images_equal(a, b) or mostly_same(a, b):
+            continue
+        went_down = _moved_down(a, b)
+        went_up = (not went_down) and _moved_down(b, a)
+        if IS_MAC and m != "key" and ((down and went_up) or (not down and went_down)):
+            pm.SCROLL_SIGN[0] *= -1             # 반대로 움직임 → 방향 보정
+            back = down                          # 보정된 방향으로 같은 명령 = 되돌리기
+        else:
+            back = not down
+        apply_scroll(hwnd, cx, cy, m, down=back, notches=notches)
         time.sleep(wait)
-        c = grab(sct, region)
-        if not images_equal(a, c):
-            if _moved_down(a, c):          # '위로'를 보냈는데 아래로 감 → 반대
-                pm.SCROLL_SIGN[0] *= -1
-                apply_scroll(hwnd, cx, cy, m, down=False, notches=notches)
-            else:
-                apply_scroll(hwnd, cx, cy, m, down=True, notches=notches)
-            time.sleep(wait)
-            return
+        METHODS.remove(m)
+        METHODS.insert(0, m)
+        if m != "wheel" and "wheel" in METHODS:
+            METHODS.remove("wheel")              # 포인터를 옮기는 방식 사용 안 함
+        return m
+    return None
 
 
 def _moved_down(a, b):
@@ -1232,8 +1236,6 @@ def detect_fixed_deep(sct, region, hwnd, cx, cy, notches, wait, park):
     """
     # 감지는 '작은 스텝(휠)'으로 깊이를 제어(PageDown 큰 스텝이 바닥을 지나치는 것 방지)
     saved_methods = list(METHODS)
-    METHODS[:] = (["send", "hid", "key", "wheel"] if IS_MAC
-                  else ["wheel", "send", "key"])
     try:
         # sticky 활성화용으로 적당히 내려간 뒤, '실제로 움직인' 프레임만 수집
         _scroll_down_n(sct, region, hwnd, cx, cy, notches, wait, park, 5)
@@ -1386,9 +1388,8 @@ def _capture_scrolling_region(region, status_cb, opts):
         h, w = probe.shape[:2]
         del probe
 
-        # ---------- 0) (macOS) 스크롤 방향 확인 ----------
-        if IS_MAC:
-            calibrate_direction(sct, region, hwnd, cx, cy, notches, wait)
+        # ---------- 0) 동작하는 스크롤 방식 확인(+ macOS 방향 보정) ----------
+        probe_methods(sct, region, hwnd, cx, cy, notches, wait)
 
         # ---------- 1) (옵션) 맨 위로 이동 ----------
         if auto_top:
