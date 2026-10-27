@@ -297,6 +297,38 @@ def main():
             threading.Timer(stop_after, ctl.stop.set).start()
         if cancel_after:
             threading.Timer(cancel_after, ctl.cancel.set).start()
+        # 포인터를 영역 밖(왼쪽 가장자리)에 두고, 캡처 중 포인터가 움직이는지 기록
+        def get_pos():
+            if sys.platform == "darwin":
+                return sc.pm.mouse_pos()
+            import win32api
+            return win32api.GetCursorPos()
+
+        def set_pos(x, y):
+            if sys.platform == "darwin":
+                sc.pm.post_mouse("move", x, y)
+            else:
+                import win32api
+                win32api.SetCursorPos((x, y))
+
+        px0, py0, pw0, ph0 = sc.primary_screen()
+        set_pos(px0 + 5, py0 + ph0 // 2)
+        time.sleep(0.3)
+        home = get_pos()
+        moved = {"max": 0, "n": 0}
+        sampling = {"on": True}
+
+        def sampler():
+            while sampling["on"]:
+                try:
+                    x, y = get_pos()
+                    moved["max"] = max(moved["max"], abs(x - home[0]) + abs(y - home[1]))
+                    moved["n"] += 1
+                except Exception:
+                    pass
+                time.sleep(0.01)
+
+        threading.Thread(target=sampler, daemon=True).start()
         t0 = time.time()
         try:
             img = sc.capture_scrolling_region(
@@ -307,6 +339,9 @@ def main():
             print("PASS" if cancel_after else "FAIL: unexpected cancel")
             return 0 if cancel_after else 1
         dt = time.time() - t0
+        sampling["on"] = False
+        print(f"pointer: moved max {moved['max']}px during capture "
+              f"({moved['n']} samples)", flush=True)
         if cancel_after:
             print("FAIL: cancel was ignored")
             return 1

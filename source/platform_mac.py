@@ -367,11 +367,14 @@ _F_WIN_UNDER_CAN = getattr(
 KC_PAGE_DOWN, KC_PAGE_UP = 121, 116
 
 
+SCROLL_SIGN = [1]   # 스크롤 방향 보정(마우스 방향 반전 유틸 등으로 뒤집혀 있으면 -1)
+
+
 def _scroll_event(cx, cy, notches, ref=None):
     """notches > 0 = 위로, < 0 = 아래로 (Windows 휠과 같은 부호)."""
     ev = Quartz.CGEventCreateScrollWheelEvent(
         None, Quartz.kCGScrollEventUnitPixel, 1,
-        int(notches * SCROLL_PX_PER_NOTCH))
+        int(notches * SCROLL_PX_PER_NOTCH * SCROLL_SIGN[0]))
     Quartz.CGEventSetLocation(ev, Quartz.CGPointMake(cx, cy))
     if ref is not None:
         try:
@@ -399,46 +402,53 @@ def _cursor_pos():
     return (p.x, p.y)
 
 
-_pointer_home = [None]     # 휠 스크롤 전 포인터 위치(캡처가 끝나면 복원)
+def scroll_hid(cx, cy, notches, ref=None):
+    """포인터를 옮기지 않고, 위치만 지정한 휠 이벤트를 시스템에 전달.
+    (포인터가 다른 앱 창 위에 있으면 그 창이 스크롤될 수 있어 보내지 않는다)"""
+    try:
+        px, py = mouse_pos()
+        under = window_at_point(px, py, exclude_pid=0)
+        if under is not None and under.pid != OWN_PID and (
+                ref is None or under.pid != ref.pid):
+            return
+    except Exception:
+        pass
+    n = abs(int(notches)) or 1
+    step = 1 if notches > 0 else -1
+    for _ in range(n):
+        Quartz.CGEventPost(Quartz.kCGHIDEventTap, _scroll_event(cx, cy, step))
+        time.sleep(0.012)
 
 
 def scroll_wheel(cx, cy, notches):
-    """포인터를 영역 위로 옮겨 실제 휠 이벤트 전송.
-    (스크롤마다 왕복하지 않도록 포인터는 그 자리에 두고, 캡처가 끝나면
-     restore_pointer() 로 한 번만 원위치)"""
-    pos = _cursor_pos()
-    if _pointer_home[0] is None:
-        _pointer_home[0] = pos
-    if abs(pos[0] - cx) > 1 or abs(pos[1] - cy) > 1:
+    """최후 수단: 포인터를 영역 위로 잠깐 옮겨 휠 전송 후 '즉시' 원위치.
+    (스크롤 중에도 사용자가 마우스를 자유롭게 쓸 수 있도록 머무르지 않음)"""
+    home = _cursor_pos()
+    try:
         Quartz.CGWarpMouseCursorPosition(Quartz.CGPointMake(cx, cy))
         Quartz.CGAssociateMouseAndMouseCursorPosition(True)
-        # 포인터가 그 위에 있다는 걸 앱(Chrome 등)이 알도록 이동 신호를 보내고 잠깐 대기
-        # (없으면 첫 휠 스크롤이 무시되기도 함)
+        # 포인터가 그 위에 있다는 걸 앱(Chrome 등)이 알도록 이동 신호
         try:
             Quartz.CGEventPost(Quartz.kCGHIDEventTap, Quartz.CGEventCreateMouseEvent(
                 None, Quartz.kCGEventMouseMoved, Quartz.CGPointMake(cx, cy),
                 Quartz.kCGMouseButtonLeft))
         except Exception:
             pass
-        time.sleep(0.15)
-    n = abs(int(notches)) or 1
-    step = 1 if notches > 0 else -1
-    for _ in range(n):
-        Quartz.CGEventPost(Quartz.kCGHIDEventTap, _scroll_event(cx, cy, step))
-        time.sleep(0.012)
-    time.sleep(0.05)
+        time.sleep(0.04)
+        n = abs(int(notches)) or 1
+        step = 1 if notches > 0 else -1
+        for _ in range(n):
+            Quartz.CGEventPost(Quartz.kCGHIDEventTap, _scroll_event(cx, cy, step))
+            time.sleep(0.012)
+        time.sleep(0.06)
+    finally:
+        Quartz.CGWarpMouseCursorPosition(Quartz.CGPointMake(*home))
+        Quartz.CGAssociateMouseAndMouseCursorPosition(True)
 
 
 def restore_pointer():
-    """휠 스크롤로 옮겼던 포인터를 원래 위치로(캡처 종료 시 1회)."""
-    home = _pointer_home[0]
-    _pointer_home[0] = None
-    if home is not None:
-        try:
-            Quartz.CGWarpMouseCursorPosition(Quartz.CGPointMake(*home))
-            Quartz.CGAssociateMouseAndMouseCursorPosition(True)
-        except Exception:
-            pass
+    """(호환용) 휠 방식은 이제 매번 즉시 원위치하므로 할 일 없음."""
+    return
 
 
 KC_DOWN, KC_UP = 125, 126
@@ -470,6 +480,8 @@ def apply_scroll(ref, cx, cy, method, down, notches):
     try:
         if method == "send":
             scroll_send(ref, cx, cy, -notches if down else notches)
+        elif method == "hid":
+            scroll_hid(cx, cy, -notches if down else notches, ref)
         elif method == "wheel":
             scroll_wheel(cx, cy, -notches if down else notches)
         else:

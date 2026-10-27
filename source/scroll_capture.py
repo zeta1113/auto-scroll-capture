@@ -771,14 +771,20 @@ def ensure_foreground(hwnd):
 
 
 def _wheel(hwnd, cx, cy, notches):
-    """실제 마우스 휠 입력(노치 단위로 나눠 전송)."""
+    """최후 수단: 실제 마우스 휠 입력. 포인터를 잠깐 옮겼다가 '즉시' 원위치
+    (스크롤 중에도 사용자가 마우스를 자유롭게 쓸 수 있도록)."""
     ensure_foreground(hwnd)
-    win32api.SetCursorPos((cx, cy))
-    time.sleep(0.03)
-    step = WHEEL_DELTA if notches > 0 else -WHEEL_DELTA
-    for _ in range(abs(notches)):
-        win32api.mouse_event(win32con.MOUSEEVENTF_WHEEL, 0, 0, step, 0)
-        time.sleep(0.02)
+    home = win32api.GetCursorPos()
+    try:
+        win32api.SetCursorPos((cx, cy))
+        time.sleep(0.03)
+        step = WHEEL_DELTA if notches > 0 else -WHEEL_DELTA
+        for _ in range(abs(notches)):
+            win32api.mouse_event(win32con.MOUSEEVENTF_WHEEL, 0, 0, step, 0)
+            time.sleep(0.02)
+        time.sleep(0.04)
+    finally:
+        win32api.SetCursorPos(home)
 
 
 def _own_window(h):
@@ -802,13 +808,16 @@ def _sendmsg_wheel(cx, cy, notches, hwnd=None):
         pass
 
 
-def _key(hwnd, cx, cy, down):
-    """PageDown / PageUp 키 입력. (커서를 옮기지 않음 → 마우스 깜빡임 방지)"""
+def _key(hwnd, cx, cy, down, notches=1):
+    """방향키(↓/↑) 입력 — 커서를 옮기지 않음.
+    (PageDown 은 한 번에 화면 대부분을 넘겨 이어 붙이기가 깨지므로 작은 단위로)"""
     ensure_foreground(hwnd)
-    key = win32con.VK_NEXT if down else win32con.VK_PRIOR
-    win32api.keybd_event(key, 0, 0, 0)
-    time.sleep(0.02)
-    win32api.keybd_event(key, 0, win32con.KEYEVENTF_KEYUP, 0)
+    key = win32con.VK_DOWN if down else win32con.VK_UP
+    for _ in range(max(1, abs(int(notches)) * 2)):
+        win32api.keybd_event(key, 0, 0, 0)
+        time.sleep(0.015)
+        win32api.keybd_event(key, 0, win32con.KEYEVENTF_KEYUP, 0)
+        time.sleep(0.015)
 
 
 def _foreign_window_at(x, y):
@@ -844,7 +853,7 @@ def apply_scroll(hwnd, cx, cy, method, down, notches, park=None):
     elif method == "send":
         _sendmsg_wheel(cx, cy, -notches if down else notches, hwnd)
     else:
-        _key(hwnd, cx, cy, down)
+        _key(hwnd, cx, cy, down, notches)
     # 캡처 직전 커서를 콘텐츠 밖으로 이동 → 마우스오버(hover) 배경색 변화 방지
     if park is not None:
         try:
@@ -941,6 +950,16 @@ def find_delta(prev, curr, max_frac=0.6, side_margin=24):
     return maxloc[1], float(maxv)
 
 
+def mostly_same(a, b, frac=0.15, row_thr=2.5):
+    """바뀐 행이 전체의 frac 미만이면 '같은 화면'(스크롤되지 않음)으로 본다.
+    스크롤되면 내용이 위로 밀려 대부분의 행이 바뀌지만, 떠 있는 '맨 위로' 버튼이나
+    마우스 오버 효과는 일부 행만 바꾼다 → 페이지 끝에서 같은 화면이 중복으로 붙는 것 방지."""
+    if a.shape != b.shape:
+        return False
+    rd = np.mean(np.abs(a.astype(np.int16) - b.astype(np.int16)), axis=(1, 2))
+    return float((rd > row_thr).mean()) < frac
+
+
 def images_equal(a, b, thresh=1.2):
     if a.shape != b.shape:
         return False
@@ -979,6 +998,44 @@ def _check_abort():
 # ==================================================================
 # 캡처 엔진
 # ==================================================================
+def calibrate_direction(sct, region, hwnd, cx, cy, notches, wait):
+    """(macOS) 스크롤 방향 확인: '아래로'를 보냈는데 페이지가 위로 가면(마우스 방향 반전
+    유틸 등) 방향을 뒤집는다. 맨 위라 아래로만 움직일 수 있는 경우도 '위로' 시험으로 판정."""
+    if not IS_MAC:
+        return
+    for m in [x for x in METHODS if x != "key"]:
+        a = grab(sct, region)
+        apply_scroll(hwnd, cx, cy, m, down=True, notches=notches)
+        time.sleep(wait)
+        b = grab(sct, region)
+        if not images_equal(a, b):
+            if _moved_down(a, b):
+                apply_scroll(hwnd, cx, cy, m, down=False, notches=notches)   # 원위치
+            elif _moved_down(b, a):
+                pm.SCROLL_SIGN[0] *= -1                                     # 반대 → 보정
+                apply_scroll(hwnd, cx, cy, m, down=True, notches=notches)    # 원위치
+            time.sleep(wait)
+            return
+        apply_scroll(hwnd, cx, cy, m, down=False, notches=notches)
+        time.sleep(wait)
+        c = grab(sct, region)
+        if not images_equal(a, c):
+            if _moved_down(a, c):          # '위로'를 보냈는데 아래로 감 → 반대
+                pm.SCROLL_SIGN[0] *= -1
+                apply_scroll(hwnd, cx, cy, m, down=False, notches=notches)
+            else:
+                apply_scroll(hwnd, cx, cy, m, down=True, notches=notches)
+            time.sleep(wait)
+            return
+
+
+def _moved_down(a, b):
+    """a → b 사이에 페이지가 아래로 스크롤됐는지(내용이 위로 밀림)."""
+    h = a.shape[0]
+    d, score = find_delta(a, b, max_frac=0.6)
+    return 2 < d <= h and score >= 0.5
+
+
 def scroll_to_top(sct, region, hwnd, cx, cy, notches, wait, park=None):
     """대상을 맨 위로 스크롤. 마지막으로 성공한 방식 인덱스를 반환."""
     prev = grab(sct, region)
@@ -1175,7 +1232,7 @@ def detect_fixed_deep(sct, region, hwnd, cx, cy, notches, wait, park):
     """
     # 감지는 '작은 스텝(휠)'으로 깊이를 제어(PageDown 큰 스텝이 바닥을 지나치는 것 방지)
     saved_methods = list(METHODS)
-    METHODS[:] = (["send", "wheel", "key"] if IS_MAC
+    METHODS[:] = (["send", "hid", "key", "wheel"] if IS_MAC
                   else ["wheel", "send", "key"])
     try:
         # sticky 활성화용으로 적당히 내려간 뒤, '실제로 움직인' 프레임만 수집
@@ -1300,8 +1357,9 @@ def _capture_scrolling_region(region, status_cb, opts):
 
     # 커서를 움직이지 않는 방식(send/key: 대상 창에 직접 스크롤 메시지)을 우선하고,
     # 이 방식들이 안 먹히는 창에서만 마지막으로 wheel(커서 위치 필요)을 쓴다.
-    # macOS: PageDown 은 한 번에 너무 많이 내려가 정합이 깨지므로 휠(포인터 한 번 이동)을 우선
-    METHODS[:] = (["send", "wheel", "key"] if IS_MAC
+    # 포인터를 옮기지 않는 방식 우선: 직접 전달(send) → (macOS) 위치 지정 휠(hid) → 방향키(key)
+    # → 최후에만 실제 휠(wheel: 포인터를 잠깐 옮겼다 즉시 원위치)
+    METHODS[:] = (["send", "hid", "key", "wheel"] if IS_MAC
                   else ["send", "key", "wheel"])
     METHOD_STATS.clear()
 
@@ -1327,6 +1385,10 @@ def _capture_scrolling_region(region, status_cb, opts):
         xs, ys, ws, hs = region
         h, w = probe.shape[:2]
         del probe
+
+        # ---------- 0) (macOS) 스크롤 방향 확인 ----------
+        if IS_MAC:
+            calibrate_direction(sct, region, hwnd, cx, cy, notches, wait)
 
         # ---------- 1) (옵션) 맨 위로 이동 ----------
         if auto_top:
@@ -1586,8 +1648,9 @@ def _capture_scrolling_region(region, status_cb, opts):
                 status_cb(cap_fmt.format(h=canvas.shape[0]))
                 continue
 
-            # (b) 화소가 조금 바뀌었으나 정합 실패 → 직전 delta로 진행
-            if not images_equal(C(before), C(cur)):
+            # (b) 화면이 실제로 스크롤됐으나 정합 실패 → 직전 delta로 진행
+            #     (일부만 바뀐 경우 = 떠 있는 버튼/마우스 오버 → 스크롤 아님)
+            if not images_equal(C(before), C(cur)) and not mostly_same(C(before), C(cur)):
                 d = last_delta if last_delta > 2 else h // 4
                 place(cur, d)
                 prev = cur
@@ -1603,7 +1666,8 @@ def _capture_scrolling_region(region, status_cb, opts):
                     apply_scroll(hwnd, cx, cy, m, down=True, notches=pn, park=park)
                     time.sleep(wait * 1.4)
                     cur = grab(sct, region)
-                    if not images_equal(C(before), C(cur)):
+                    if (not images_equal(C(before), C(cur))
+                            and not mostly_same(C(before), C(cur))):
                         crossed = cur
                         pref = METHODS.index(m)
                         break
@@ -3738,7 +3802,7 @@ class App:
         if self._hidden:
             self.root.withdraw()
             self.root.update()
-        time.sleep(0.15)
+        time.sleep(0.15 if frozen is None or mode.startswith("scroll_") else 0.05)
 
         # ---- 대상 영역 선택 ----  (선택 중 Esc 는 전역 키로도 받아 취소)
         self._apply_hotkeys(capturing=True)
@@ -3848,7 +3912,7 @@ class App:
                 self.root.after(0, lambda: self._done_split(paths, img, stopped))
             else:
                 path = save_png(img, self.save_dir.get())
-                self.root.after(0, lambda: self._done(path, stopped))
+                self.root.after(0, lambda: self._done(path, stopped, img))
         except CaptureCancelled:
             ctl = opts.get("control")
             early = bool(ctl is not None and ctl.stop.is_set()
@@ -3879,7 +3943,7 @@ class App:
                 with screen_grabber() as sct:
                     img = grab(sct, region)
             path = save_png(img, self.save_dir.get())
-            self.root.after(0, lambda: self._done(path))
+            self.root.after(0, lambda: self._done(path, False, img))
         except Exception as e:
             m = str(e)
             self.root.after(0, lambda: self._error(m))
@@ -3913,15 +3977,14 @@ class App:
             self._set_progress(100)
             self.root.after(3000, lambda: self._show_progress(False))
 
-    def _done(self, path, stopped=False):
+    def _done(self, path, stopped=False, img=None):
         self._finish_ui()
         done = self.t("status_stopped_fmt" if stopped else "status_done_fmt",
                       name=os.path.basename(path))
-        # 캡처 완료 시 자동으로 클립보드에 복사(옵션)
-        if self.opt_auto_copy.get() and copy_image_to_clipboard(path):
-            done = f"{done}  ·  {self.t('copied_status')}"
         self.status.set(done)
-        self.refresh_list()
+        self._prepend_files([path], img)            # 목록: 새 파일만 맨 위에 추가
+        if self.opt_auto_copy.get():                 # 클립보드 복사(옵션)
+            self._copy_async(done, path=path, img=img)
 
     def _done_split(self, paths, img=None, stopped=False):
         """높이 분할 자르기로 여러 파일이 생성된 경우의 완료 처리.
@@ -3929,11 +3992,35 @@ class App:
         self._finish_ui()
         done = self.t("status_stopped_split_fmt" if stopped
                       else "status_done_split_fmt", n=len(paths))
-        if img is not None and self.opt_auto_copy.get() \
-                and copy_ndarray_to_clipboard(img):
-            done = f"{done}  ·  {self.t('copied_status')}"
         self.status.set(done)
-        self.refresh_list()
+        self._prepend_files(list(reversed(paths)), None)
+        if img is not None and self.opt_auto_copy.get():
+            self._copy_async(done, img=img)
+
+    def _copy_async(self, done_text, path=None, img=None):
+        """클립보드 복사. 큰 이미지는 변환·전달에 시간이 걸리므로 Windows 는
+        백그라운드 스레드에서 처리(창이 멈추지 않게). macOS 는 메인 스레드(빠름)."""
+        def work():
+            ok = (copy_ndarray_to_clipboard(img) if img is not None
+                  else copy_image_to_clipboard(path))
+            return ok
+
+        def finish(ok):
+            if ok and self.status.get() == done_text:
+                self.status.set(f"{done_text}  ·  {self.t('copied_status')}")
+
+        if IS_MAC:
+            finish(work())
+            return
+
+        def bg():
+            ok = work()
+            try:
+                self.root.after(0, lambda: finish(ok))
+            except Exception:
+                pass
+
+        threading.Thread(target=bg, daemon=True).start()
 
     def _error(self, msg):
         self._end_capture_controls()
@@ -3947,7 +4034,94 @@ class App:
         messagebox.showwarning(self.t("info_title"), msg)
 
     # ---------- 파일 목록 ----------
+    LIST_MAX = 60
+    THUMB_SIZE = (120, 80)
+
+    def _thumb_cached(self, path):
+        """캐시된 썸네일(PIL) — 파일이 바뀌지 않았으면 다시 읽지 않는다."""
+        try:
+            mt = os.path.getmtime(path)
+        except OSError:
+            return None
+        v = self._thumb_cache.get(path)
+        return v[1] if (v and v[0] == mt) else None
+
+    def _thumb_make(self, path, img=None):
+        """썸네일 생성(캐시 저장). img(BGR 배열)가 있으면 파일을 다시 읽지 않음."""
+        try:
+            mt = os.path.getmtime(path)
+            if img is not None:
+                h, w = img.shape[:2]
+                k = max(1, int(max(w / self.THUMB_SIZE[0], h / self.THUMB_SIZE[1])))
+                small = img[::k, ::k]
+                im = Image.fromarray(cv2.cvtColor(small, cv2.COLOR_BGR2RGB))
+            else:
+                im = Image.open(path)
+                im.draft("RGB", self.THUMB_SIZE)
+            im.thumbnail(self.THUMB_SIZE)
+            im = im.convert("RGB")
+            self._thumb_cache[path] = (mt, im)
+            return im
+        except Exception:
+            return None
+
+    def _load_thumbs_async(self, pending):
+        """캐시에 없는 썸네일을 백그라운드에서 만들고, 다 되면 화면에 반영."""
+        if not pending:
+            return
+        gen = self._list_gen
+
+        def bg():
+            made = [(p, lbl, self._thumb_make(p)) for p, lbl in pending]
+
+            def apply():
+                if gen != self._list_gen:        # 그사이 목록이 다시 그려짐
+                    return
+                for p, lbl, im in made:
+                    if im is None:
+                        continue
+                    try:
+                        photo = ImageTk.PhotoImage(im)
+                        self._thumbs.append(photo)
+                        lbl.config(image=photo, text="", width=0)
+                    except Exception:
+                        pass
+            try:
+                self.root.after(0, apply)
+            except Exception:
+                pass
+
+        threading.Thread(target=bg, daemon=True).start()
+
+    def _prepend_files(self, paths, img=None):
+        """새로 저장된 파일만 목록 맨 위에 추가(전체 다시 읽기 없음)."""
+        rows = [w for w in self.list_inner.winfo_children()
+                if getattr(w, "_sc_row", False)]
+        if not rows:                 # 비어 있음/폴더 없음 안내 상태 → 새로 그림
+            self.refresh_list()
+            return
+        if img is not None and len(paths) == 1:
+            self._thumb_make(paths[0], img)
+        pending = []
+        for path in paths:
+            lbl = self._add_row(path, top=True)
+            if lbl is not None:
+                pending.append((path, lbl))
+        self._load_thumbs_async(pending)
+        # 최대 개수 초과분(가장 오래된 것) 제거
+        rows = [w for w in self.list_inner.winfo_children()
+                if getattr(w, "_sc_row", False)]
+        for r in rows[self.LIST_MAX:]:
+            try:
+                r._sc_sep.destroy()
+                r.destroy()
+            except Exception:
+                pass
+
     def refresh_list(self):
+        self._list_gen = getattr(self, "_list_gen", 0) + 1
+        if not hasattr(self, "_thumb_cache"):
+            self._thumb_cache = {}
         for w in self.list_inner.winfo_children():
             w.destroy()
         self._thumbs.clear()
@@ -3965,24 +4139,39 @@ class App:
                      bg=MC["bg"], fg=MC["muted"], font=self.f_text).pack(
                          anchor="w", padx=6, pady=6)
             return
-        for path in files[:60]:
-            self._add_row(path)
+        pending = []
+        for path in files[:self.LIST_MAX]:
+            lbl = self._add_row(path)
+            if lbl is not None:
+                pending.append((path, lbl))
+        self._load_thumbs_async(pending)       # 썸네일은 백그라운드에서
 
-    def _add_row(self, path):
+    def _add_row(self, path, top=False):
+        """목록 한 줄 추가. 썸네일이 캐시에 없으면 자리만 만들고 그 Label 을 돌려준다
+        (나중에 백그라운드에서 채움). top=True 면 목록 맨 위에 넣는다."""
         C = MC
+        if not hasattr(self, "_thumb_cache"):
+            self._thumb_cache = {}
+        kids = self.list_inner.winfo_children()
+        first = kids[0] if (top and kids) else None
         row = tk.Frame(self.list_inner, bg=C["white"])
-        row.pack(fill="x")
+        if first is not None:
+            row.pack(fill="x", before=first)
+        else:
+            row.pack(fill="x")
+        row._sc_row = True
         inner = tk.Frame(row, bg=C["white"])
         inner.pack(fill="x", padx=4, pady=4)
-        try:
-            im = Image.open(path)
-            im.thumbnail((120, 80))
+        pending = None
+        im = self._thumb_cached(path)
+        if im is not None:
             photo = ImageTk.PhotoImage(im)
             self._thumbs.append(photo)
             thumb = tk.Label(inner, image=photo, bg=C["white"])
-        except Exception:
-            thumb = tk.Label(inner, text="[img]", width=12, bg=C["white"],
+        else:
+            thumb = tk.Label(inner, text="…", width=12, height=4, bg=C["white"],
                              fg=C["muted"])
+            pending = thumb
         thumb.pack(side="left")
         # 열기/복사 버튼(오른쪽 먼저 배치해 폭을 확보 → 파일명이 침범 못 함)
         btns = tk.Frame(inner, bg=C["white"])
@@ -4022,7 +4211,9 @@ class App:
         l3.pack(anchor="w")
 
         # 하단 구분선
-        tk.Frame(self.list_inner, bg=C["border"], height=1).pack(fill="x")
+        sep = tk.Frame(self.list_inner, bg=C["border"], height=1)
+        sep.pack(fill="x", after=row)
+        row._sc_sep = sep
 
         # Hover(연블루) — 항목의 tk 위젯 배경 전환(라운드 버튼 여백도 함께)
         hover_widgets = [row, inner, thumb, info, l1, l2, l3, btns,
@@ -4039,6 +4230,7 @@ class App:
             wd.bind("<Enter>", lambda e: set_bg(C["list_hover"]))
             wd.bind("<Leave>", lambda e: set_bg(C["white"]))
             wd.bind("<Double-Button-1>", lambda e, p=path: open_path(p))
+        return pending
 
     def _fit_name(self, label, fullname):
         """이름 표시 폭에 맞춰, 넘칠 때만 확장자(.png)는 남기고 … 로 줄임.
@@ -4086,6 +4278,7 @@ class App:
             os.remove(path)
         except Exception:
             messagebox.showwarning(self.t("info_title"), self.t("delete_fail"))
+        getattr(self, "_thumb_cache", {}).pop(path, None)
         self.refresh_list()
 
     def _restore_copy_btn(self, btn):
@@ -4186,7 +4379,8 @@ def copy_ndarray_to_clipboard(img_bgr):
     분할 저장 시 파일로 나뉜 원본 '전체'를 그대로 복사하는 데 사용."""
     if IS_MAC:
         ok, buf = cv2.imencode(".png", img_bgr)
-        return bool(ok) and pm.copy_png_bytes(buf.tobytes())
+        big = img_bgr.shape[0] * img_bgr.shape[1] > 12_000_000
+        return bool(ok) and pm.copy_png_bytes(buf.tobytes(), with_tiff=not big)
     try:
         rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
         out = io.BytesIO()

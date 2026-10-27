@@ -99,9 +99,9 @@ jobs:
           echo "::notice title=engine-cancel ${{ matrix.arch }}::$(grep -E 'cancel|PASS|FAIL' engine_cancel_${{ matrix.arch }}.txt | tr '\n' ' ')"
           # 고정(sticky) 바가 중간부터 붙는 창 / 실제 Chrome 페이지 — 줄 표식으로 빠짐·중복 검사
           python tools/engine_test.py "engine_sticky_${{ matrix.arch }}.png" --sticky 2>&1 | tee engine_sticky_${{ matrix.arch }}.txt
-          echo "::notice title=engine-sticky ${{ matrix.arch }}::$(grep -E 'result:|lines:|PASS|FAIL' engine_sticky_${{ matrix.arch }}.txt | tr '\n' ' ')"
+          echo "::notice title=engine-sticky ${{ matrix.arch }}::$(grep -E 'pointer:|result:|lines:|PASS|FAIL' engine_sticky_${{ matrix.arch }}.txt | tr '\n' ' ')"
           python tools/engine_test.py "engine_chrome_${{ matrix.arch }}.png" --chrome 2>&1 | tee engine_chrome_${{ matrix.arch }}.txt
-          echo "::notice title=engine-chrome ${{ matrix.arch }}::$(grep -E 'region|result:|lines:|PASS|FAIL|SKIP|Error' engine_chrome_${{ matrix.arch }}.txt | tr '\n' ' ')"
+          echo "::notice title=engine-chrome ${{ matrix.arch }}::$(grep -E 'pointer:|result:|lines:|PASS|FAIL|SKIP|Error' engine_chrome_${{ matrix.arch }}.txt | tr '\n' ' ')"
 
       - name: Build app + DMG
         run: |
@@ -155,3 +155,35 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "$TAG" release/*.dmg --clobber
+
+  # Windows 엔진 점검(빌드 없음): 깨끗한 Windows 서버에서 실제 입력으로 스크롤 캡처 검증
+  windows-engine:
+    name: Windows engine test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG || github.ref }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: python -m pip install -r source/requirements.txt
+      - name: Engine tests (plain / sticky / Chrome)
+        continue-on-error: true
+        timeout-minutes: 20
+        shell: bash
+        run: |
+          for m in "" "--sticky" "--chrome"; do
+            n="win${m//-/_}"
+            python tools/engine_test.py "engine_${n}.png" $m 2>&1 | tee "engine_${n}.txt"
+            echo "::notice title=engine ${n}::$(grep -E 'pointer:|result:|lines:|PASS|FAIL|SKIP|Error' "engine_${n}.txt" | tr '\n' ' ')"
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: engine-windows
+          path: |
+            engine_*.txt
+            engine_*.png
+          if-no-files-found: warn
