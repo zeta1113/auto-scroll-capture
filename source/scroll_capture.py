@@ -1707,6 +1707,15 @@ def _capture_scrolling_region(region, status_cb, opts):
                     before[st:h, cl:cr], cur[st:h, cl:cr], max_frac=0.6)
                 _dbg(f"a m={m} st={st} delta={delta} score={score:.3f} "
                      f"off={offset}")
+                fd = os.environ.get("SC_FRAMES")
+                if fd and offset < 1600:         # 진단: 처음 몇 스텝의 전/후 화면 저장
+                    try:
+                        os.makedirs(fd, exist_ok=True)
+                        k = len(os.listdir(fd)) // 2
+                        cv2.imwrite(os.path.join(fd, f"f{k:02d}_a_before.png"), before)
+                        cv2.imwrite(os.path.join(fd, f"f{k:02d}_b_cur.png"), cur)
+                    except Exception:
+                        pass
                 if 2 < delta <= h - st and score >= SCORE_THR:
                     best = (cur, delta, st)
                     pref = METHODS.index(m)

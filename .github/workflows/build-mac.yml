@@ -203,9 +203,9 @@ jobs:
           cp -r source/assets old/
           URL=https://github.com/jiwoochris/artex-global
           # 첫 Chrome 실행(첫 실행 안내 등) 영향을 없애려고 한 번 미리 실행
-          SC_LOG=$PWD/page_warm_win_log.txt python tools/engine_test.py page_warm_win.png --url $URL 2>&1 | tee page_warm_win.txt
+          SC_FRAMES=$PWD/fr_warm SC_LOG=$PWD/page_warm_win_log.txt python tools/engine_test.py page_warm_win.png --url $URL 2>&1 | tee page_warm_win.txt
           python tools/engine_test.py page_old_win.png --url $URL --src old 2>&1 | tee page_old_win.txt
-          SC_LOG=$PWD/page_new2_win_log.txt python tools/engine_test.py page_new2_win.png --url $URL 2>&1 | tee page_new2_win.txt
+          SC_FRAMES=$PWD/fr_new2 SC_LOG=$PWD/page_new2_win_log.txt python tools/engine_test.py page_new2_win.png --url $URL 2>&1 | tee page_new2_win.txt
           echo "::notice title=page warm win::$(grep -E 'result:' page_warm_win.txt)"
           echo "::notice title=page new2 win::$(grep -E 'result:' page_new2_win.txt)"
           echo "::notice title=page new win::$(grep -E 'region|pointer:|result:|DONE|Error' page_new_win.txt | tr '\n' ' ')"
@@ -216,7 +216,9 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python tools/publish_images.py ci-art-win "page_*.png" "page_*.txt" "engine_*.png"
+        run: |
+          for d in fr_warm fr_new2; do for f in $d/*.png; do [ -f "$f" ] && cp "$f" "${d}_$(basename $f)"; done; done
+          python tools/publish_images.py ci-art-win "page_*.png" "page_*.txt" "engine_*.png" "fr_*.png"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
