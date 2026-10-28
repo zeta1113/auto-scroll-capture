@@ -1436,7 +1436,10 @@ def _capture_scrolling_region(region, status_cb, opts):
         # 깊은 sticky 감지(옵션)가 없으면 감지하며 내려간 프레임을 본 캡처에 그대로 이어 쓴다
         # (다시 위로 올라가지 않음). 옵션이 켜져 있으면 예전처럼 위치를 복원한다.
         status_cb(S.get("status_detecting", "고정 영역 감지 중..."))
-        replay_mode = not handle_sticky and not os.environ.get("SC_NO_REPLAY")
+        # Windows Chrome 등은 스크롤 애니메이션 때문에 감지 프레임과 실제 위치가 어긋나
+        # 이어 쓰기가 깨진다(CI 실측: 13.5k→19.7k px) → macOS 에서만 사용
+        replay_mode = (IS_MAC and not handle_sticky
+                       and not os.environ.get("SC_NO_REPLAY"))
         reg = measure_fixed_regions(sct, region, hwnd, cx, cy, notches, wait,
                                     park=park, restore=not replay_mode)
         top_band, bot_band = reg["top"], reg["bot"]
