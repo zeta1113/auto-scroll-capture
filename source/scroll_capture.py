@@ -1016,6 +1016,18 @@ class CaptureControl:
 _CTL = None   # 현재 진행 중인 캡처의 제어 객체(캡처 스레드 1개만 동작)
 
 
+def _dbg(msg):
+    """진단 로그(SC_LOG=<파일> 일 때만 기록)."""
+    path = os.environ.get("SC_LOG")
+    if not path:
+        return
+    try:
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(f"{time.time():.2f} {msg}\n")
+    except Exception:
+        pass
+
+
 def _check_abort():
     """준비 단계(맨 위 이동/고정 영역 감지) 중의 중지·취소는 모두 '취소'로 처리
     (아직 이어붙인 결과가 없으므로 저장할 것이 없음)."""
@@ -1424,8 +1436,11 @@ def _capture_scrolling_region(region, status_cb, opts):
         del probe
 
         # ---------- 0) 동작하는 스크롤 방식 확인(+ macOS 방향 보정) ----------
+        _dbg(f"start region={region} img={w}x{h} sc={sc} hwnd={hwnd} "
+             f"methods={METHODS} notches={notches} wait={wait:.2f}")
         if not os.environ.get("SC_NO_PROBE"):          # (진단용 끄기 스위치)
-            probe_methods(sct, region, hwnd, cx, cy, notches, wait)
+            pm_ = probe_methods(sct, region, hwnd, cx, cy, notches, wait)
+            _dbg(f"probe -> {pm_} methods={METHODS}")
 
         # ---------- 1) (옵션) 맨 위로 이동 ----------
         if auto_top:
@@ -1444,6 +1459,8 @@ def _capture_scrolling_region(region, status_cb, opts):
                                     park=park, restore=not replay_mode)
         top_band, bot_band = reg["top"], reg["bot"]
         left_band, right_band = reg["left"], reg["right"]
+        _dbg(f"bands top={top_band} bot={bot_band} left={left_band} "
+             f"right={right_band} downs={reg.get('downs')} replay={replay_mode}")
         replay = reg["moved"] if replay_mode else None
         if auto_top and not replay_mode:
             pref = scroll_to_top(sct, region, hwnd, cx, cy, top_notches, wait, park=park)
@@ -1672,6 +1689,8 @@ def _capture_scrolling_region(region, status_cb, opts):
                     st = max(sticky_base, _sticky_rows(before, cur, cl, cr, h))
                 delta, score = find_delta(
                     before[st:h, cl:cr], cur[st:h, cl:cr], max_frac=0.6)
+                _dbg(f"a m={m} st={st} delta={delta} score={score:.3f} "
+                     f"off={offset}")
                 if 2 < delta <= h - st and score >= SCORE_THR:
                     best = (cur, delta, st)
                     pref = METHODS.index(m)
@@ -1703,6 +1722,7 @@ def _capture_scrolling_region(region, status_cb, opts):
                 d = last_delta if last_delta > 2 else h // 4
                 if d > h - st:
                     st = 0
+                _dbg(f"b d={d} st={st}")
                 place(cur, d, st)
                 prev = cur
                 status_cb(cap_fmt.format(h=canvas.shape[0]))
@@ -1725,6 +1745,7 @@ def _capture_scrolling_region(region, status_cb, opts):
                 if crossed is not None:
                     break
             if crossed is None:
+                _dbg(f"c end (no crossing) off={offset}")
                 break  # 진짜 바닥(또는 중지)
 
             cur = crossed
@@ -1735,6 +1756,7 @@ def _capture_scrolling_region(region, status_cb, opts):
                 d = delta
             else:
                 d, st = h, 0
+            _dbg(f"c crossed d={d} st={st} delta={delta} score={score:.3f}")
             place(cur, d, st)
             prev = cur
             status_cb(cap_fmt.format(h=canvas.shape[0]))
