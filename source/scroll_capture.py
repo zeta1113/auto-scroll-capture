@@ -998,16 +998,20 @@ def _check_abort():
 # ==================================================================
 # 캡처 엔진
 # ==================================================================
+# 포인터를 (잠깐이라도) 움직이는 스크롤 방식 — 다른 방식이 되면 쓰지 않는다
+#  hid/sess: macOS 에서 위치 지정 휠도 포인터를 그 위치로 옮김(CI 실측)
+POINTER_MOVING = {"hid", "sess", "wheel"}
+
+
 def probe_methods(sct, region, hwnd, cx, cy, notches, wait):
     """캡처 시작 시 실제로 동작하는 스크롤 방식을 먼저 찾는다.
     - 포인터를 옮기지 않는 방식(send/hid/key)이 동작하면 이번 캡처에서는 휠(wheel:
       포인터를 잠깐 옮김)을 아예 쓰지 않는다 → 맨 위/맨 끝 확인 중에도 포인터가 안 움직임
     - (macOS) '아래로'를 보냈는데 위로 가면 스크롤 방향을 뒤집는다(방향 반전 유틸 대응)
     시험으로 움직인 만큼은 되돌려 놓는다."""
-    free = [m for m in METHODS if m != "wheel"]
-    tries = [(m, d) for m in free for d in (True, False)]
-    if "wheel" in METHODS:
-        tries += [("wheel", True), ("wheel", False)]
+    free = [m for m in METHODS if m not in POINTER_MOVING]
+    moving = [m for m in METHODS if m in POINTER_MOVING]
+    tries = [(m, d) for m in free + moving for d in (True, False)]
     for m, down in tries:
         _check_abort()
         a = grab(sct, region)
@@ -1027,8 +1031,8 @@ def probe_methods(sct, region, hwnd, cx, cy, notches, wait):
         time.sleep(wait)
         METHODS.remove(m)
         METHODS.insert(0, m)
-        if m != "wheel" and "wheel" in METHODS:
-            METHODS.remove("wheel")              # 포인터를 옮기는 방식 사용 안 함
+        if m not in POINTER_MOVING:              # 포인터를 옮기는 방식은 이번엔 사용 안 함
+            METHODS[:] = [x for x in METHODS if x not in POINTER_MOVING]
         return m
     return None
 
@@ -4503,6 +4507,12 @@ def _selftest(app, out_path):
         check("update_check", lambda: (lambda i: i["tag"] if i else
                                        updater.last_error)(
             updater.check_latest(GITHUB_REPO, APP_VERSION)))
+
+    # 사용 중인 PC 에서는 마우스/키 입력을 흉내 내는 점검을 건너뛸 수 있음
+    if os.environ.get("SCROLLCAPTURE_SELFTEST_NOINPUT"):
+        lines.append("INFO input tests skipped (SCROLLCAPTURE_SELFTEST_NOINPUT)")
+        _selftest_finish(app, out_path, lines, failed)
+        return
 
     # 실제 키(F19)를 보내 전역 단축키 → 메인 루프 처리까지 확인
     # (예전 macOS 크래시: 단축키 콜백에서 Tk 호출 → 다음 after 콜백에서 abort)

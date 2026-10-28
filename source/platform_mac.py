@@ -507,6 +507,15 @@ def apply_scroll(ref, cx, cy, method, down, notches):
         elif method == "wheel":
             scroll_wheel(cx, cy, -notches if down else notches)
         else:
+            # 키 입력은 앞에 있는 창으로 가므로, 사용자가 다른 앱(예: 중지 패널)을
+            # 눌러 대상이 뒤로 갔으면 다시 앞으로
+            try:
+                front = NSWorkspace.sharedWorkspace().frontmostApplication()
+                if ref is not None and (front is None
+                                        or int(front.processIdentifier()) != int(ref.pid)):
+                    ensure_foreground(ref)
+            except Exception:
+                pass
             key_page(ref, down, notches)
     except Exception:
         pass
