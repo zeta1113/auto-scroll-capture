@@ -1065,7 +1065,8 @@ def probe_methods(sct, region, hwnd, cx, cy, notches, wait):
     - 포인터를 옮기지 않는 방식(send/hid/key)이 동작하면 이번 캡처에서는 휠(wheel:
       포인터를 잠깐 옮김)을 아예 쓰지 않는다 → 맨 위/맨 끝 확인 중에도 포인터가 안 움직임
     - (macOS) '아래로'를 보냈는데 위로 가면 스크롤 방향을 뒤집는다(방향 반전 유틸 대응)
-    시험으로 움직인 만큼은 되돌려 놓는다."""
+    시험으로 움직인 만큼은 되돌려 놓는다.
+    반환: (방식, 시험 스크롤로 실제 움직인 px — 모르면 None)"""
     free = [m for m in METHODS if m not in POINTER_MOVING]
     moving = [m for m in METHODS if m in POINTER_MOVING]
     tries = [(m, d) for m in free + moving for d in (True, False)]
@@ -1074,11 +1075,15 @@ def probe_methods(sct, region, hwnd, cx, cy, notches, wait):
         a = grab(sct, region)
         apply_scroll(hwnd, cx, cy, m, down=down, notches=notches)
         time.sleep(wait)
-        b = grab(sct, region)
+        b = grab_settled(sct, region)
         if same_view(a, b):
             continue
-        went_down = _moved_down(a, b)
-        went_up = (not went_down) and _moved_down(b, a)
+        # 실제 이동량(넓은 범위에서 확실한 일치만)
+        dd, sd = find_delta(a, b, max_frac=0.95)
+        du, su = find_delta(b, a, max_frac=0.95)
+        went_down = dd > 2 and sd >= 0.6 and sd >= su
+        went_up = (not went_down) and du > 2 and su >= 0.6
+        moved_px = dd if went_down else (du if went_up else None)
         if IS_MAC and m != "key" and ((down and went_up) or (not down and went_down)):
             pm.SCROLL_SIGN[0] *= -1             # 반대로 움직임 → 방향 보정
             back = down                          # 보정된 방향으로 같은 명령 = 되돌리기
@@ -1090,8 +1095,8 @@ def probe_methods(sct, region, hwnd, cx, cy, notches, wait):
         METHODS.insert(0, m)
         if m not in POINTER_MOVING:              # 포인터를 옮기는 방식은 이번엔 사용 안 함
             METHODS[:] = [x for x in METHODS if x not in POINTER_MOVING]
-        return m
-    return None
+        return m, moved_px
+    return None, None
 
 
 def _moved_down(a, b):
@@ -1455,8 +1460,18 @@ def _capture_scrolling_region(region, status_cb, opts):
         _dbg(f"start region={region} img={w}x{h} sc={sc} hwnd={hwnd} "
              f"methods={METHODS} notches={notches} wait={wait:.2f}")
         if not os.environ.get("SC_NO_PROBE"):          # (진단용 끄기 스위치)
-            pm_ = probe_methods(sct, region, hwnd, cx, cy, notches, wait)
-            _dbg(f"probe -> {pm_} methods={METHODS}")
+            pm_, moved_px = probe_methods(sct, region, hwnd, cx, cy, notches, wait)
+            _dbg(f"probe -> {pm_} moved={moved_px} methods={METHODS}")
+            # 한 칸 스크롤이 실제로 몇 px 인지에 맞춰 칸 수 조정 → 매 스텝 이동량을
+            # 화면 높이의 약 25%(속도 옵션 비례)로 맞춘다. 브라우저/설정에 따라 한 칸
+            # 이동량이 달라도(예: Chrome 이 한 번에 60% 이동) 충분히 겹치게 스크롤.
+            if moved_px:
+                per = moved_px / float(notches)
+                target = h * min(0.45, 0.25 * speed)
+                notches = int(min(12, max(1, round(target / per))))
+                top_notches = int(min(20, max(2, round(target * 2.5 / per))))
+                _dbg(f"adapt per_notch={per:.0f}px -> notches={notches} "
+                     f"top={top_notches}")
 
         # ---------- 1) (옵션) 맨 위로 이동 ----------
         if auto_top:
