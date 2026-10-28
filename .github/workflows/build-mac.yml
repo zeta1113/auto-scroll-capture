@@ -209,7 +209,7 @@ jobs:
           SC_NO_STICKY=1 python tools/engine_test.py page_nostk_win.png --url $URL 2>&1 | tee page_nostk_win.txt
           SC_NO_PROBE=1 python tools/engine_test.py page_noprb_win.png --url $URL 2>&1 | tee page_noprb_win.txt
           SC_NO_REPLAY=1 SC_NO_STICKY=1 SC_NO_PROBE=1 python tools/engine_test.py page_noall_win.png --url $URL 2>&1 | tee page_noall_win.txt
-          for v in norep nostk noprb noall; do echo "::notice title=page $v win::$(grep -E 'result:' page_${v}_win.txt | tr -d '')"; done
+          for v in norep nostk noprb noall; do echo "::notice title=page $v win::$(grep -E 'result:' page_${v}_win.txt)"; done
           echo "::notice title=page new win::$(grep -E 'region|pointer:|result:|DONE|Error' page_new_win.txt | tr '\n' ' ')"
           echo "::notice title=page old win::$(grep -E 'region|pointer:|result:|DONE|Error' page_old_win.txt | tr '\n' ' ')"
       - name: Publish images
