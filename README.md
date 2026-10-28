@@ -72,11 +72,12 @@ auto-capture/
 ## 릴리즈 정보
 
 - 최신 빌드 및 전체 이력은 [`release/RELEASES.md`](release/RELEASES.md) 참고.
-- 📥 **다운로드**: [최신 릴리스(v1.5.8)](https://github.com/zeta1113/auto-scroll-capture/releases/latest)
-  - Windows: `ScrollCapture_Setup_v1.5.8.exe`
-  - macOS: `ScrollCapture_mac_arm64_v1.5.8.dmg`(Apple Silicon) / `ScrollCapture_mac_x86_64_v1.5.8.dmg`(Intel)
+- 📥 **다운로드**: [최신 릴리스(v1.5.9)](https://github.com/zeta1113/auto-scroll-capture/releases/latest)
+  - Windows: `ScrollCapture_Setup_v1.5.9.exe`
+  - macOS: `ScrollCapture_mac_arm64_v1.5.9.dmg`(Apple Silicon) / `ScrollCapture_mac_x86_64_v1.5.9.dmg`(Intel)
 - 🔔 자동 업데이트: `GITHUB_REPO = "zeta1113/auto-scroll-capture"` 설정됨 — 새 릴리스가 올라오면 앱이 자동 감지해 알림
-- 현재 최신: **v1.5.8** — Windows `ScrollCapture_Setup_v1.5.8.exe` + macOS DMG(arm64/x86_64)
+- 현재 최신: **v1.5.9** — Windows `ScrollCapture_Setup_v1.5.9.exe` + macOS DMG(arm64/x86_64)
+  - v1.5.9: **스크롤 이동량 자동 조정**(시작 시 한 칸 실제 이동량 측정 → 매 스텝 화면 높이의 약 1/4) — Chrome 이 한 번에 크게 스크롤해 이어 붙이기가 깨지던 문제 해결, 실제 GitHub 페이지 Windows/macOS 에서 v1.4.19 와 같은 결과 확인
   - v1.5.8: 스크롤 캡처 안정화 — 한 스텝 한 방식, 위치 맞추기 기준 보강, 같은 화면 판정 강화, 감지 프레임 이어 쓰기는 macOS 만(Windows Chrome 애니메이션으로 어긋남 확인), 끝 확인 시 다른 창 스크롤 방지, 썸네일 표시 수정 · CI 에서 실제 GitHub 페이지 새/이전 버전 비교
   - v1.5.7: **스크롤 중 마우스 포인터를 움직이지 않음**(시작 시 동작 방식 확인 → 포인터 미사용 방식만, macOS Chrome 은 방향키) · **페이지 끝 중복 방지**(일부만 바뀐 화면은 스크롤로 보지 않음) · macOS 스크롤 방향 자동 보정 · **즉시 캡처 후 응답 4.1초→0.5초**(클립보드 백그라운드, 목록 증분·썸네일 캐시) · CI Windows 엔진 테스트·포인터 이동량 검사
   - v1.5.6: **고정(sticky) 메뉴 반복·내용 누락 해결**(매 스텝 감지 항상 적용 + 첫 등장 시 복원) · **캡처 전 위아래 왕복 제거**(감지 프레임 이어 쓰기) · macOS 휠 스크롤 시 **포인터 왕복 제거**·첫 휠 무시로 인한 누락 해결 · 줄 표식 기반 자동 검증(실제 Chrome 포함)
