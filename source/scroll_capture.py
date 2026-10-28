@@ -1424,7 +1424,8 @@ def _capture_scrolling_region(region, status_cb, opts):
         del probe
 
         # ---------- 0) 동작하는 스크롤 방식 확인(+ macOS 방향 보정) ----------
-        probe_methods(sct, region, hwnd, cx, cy, notches, wait)
+        if not os.environ.get("SC_NO_PROBE"):          # (진단용 끄기 스위치)
+            probe_methods(sct, region, hwnd, cx, cy, notches, wait)
 
         # ---------- 1) (옵션) 맨 위로 이동 ----------
         if auto_top:
@@ -1435,7 +1436,7 @@ def _capture_scrolling_region(region, status_cb, opts):
         # 깊은 sticky 감지(옵션)가 없으면 감지하며 내려간 프레임을 본 캡처에 그대로 이어 쓴다
         # (다시 위로 올라가지 않음). 옵션이 켜져 있으면 예전처럼 위치를 복원한다.
         status_cb(S.get("status_detecting", "고정 영역 감지 중..."))
-        replay_mode = not handle_sticky
+        replay_mode = not handle_sticky and not os.environ.get("SC_NO_REPLAY")
         reg = measure_fixed_regions(sct, region, hwnd, cx, cy, notches, wait,
                                     park=park, restore=not replay_mode)
         top_band, bot_band = reg["top"], reg["bot"]
@@ -1663,7 +1664,9 @@ def _capture_scrolling_region(region, status_cb, opts):
                 time.sleep(wait)
                 cur = grab(sct, region)
                 # 매 스텝 '이전/현재 프레임 상단의 같은 내용' = 고정(sticky) 메뉴 → 제외
-                st = max(sticky_base, _sticky_rows(before, cur, cl, cr, h))
+                st = sticky_base
+                if handle_sticky or not os.environ.get("SC_NO_STICKY"):
+                    st = max(sticky_base, _sticky_rows(before, cur, cl, cr, h))
                 delta, score = find_delta(
                     before[st:h, cl:cr], cur[st:h, cl:cr], max_frac=0.6)
                 if 2 < delta <= h - st and score >= SCORE_THR:
