@@ -794,12 +794,38 @@ def _own_window(h):
         return False
 
 
+def _child_at(hwnd, x, y):
+    """대상 창 안에서 (x, y) 에 있는 가장 안쪽 자식 창 — 다른 창에 가려져 있어도."""
+    from ctypes import wintypes
+    f = ctypes.windll.user32.ChildWindowFromPointEx
+    f.argtypes = [wintypes.HWND, wintypes.POINT, wintypes.UINT]
+    f.restype = wintypes.HWND
+    h = hwnd
+    try:
+        for _ in range(16):
+            px, py = win32gui.ScreenToClient(h, (x, y))
+            c = f(h, wintypes.POINT(px, py), 0x1 | 0x2)   # 숨김·비활성 자식 제외
+            if not c or c == h:
+                break
+            h = c
+    except Exception:
+        pass
+    return h
+
+
 def _sendmsg_wheel(cx, cy, notches, hwnd=None):
-    """커서 위치의 창에 WM_MOUSEWHEEL 메시지를 직접 전달."""
+    """영역 중앙 위치의 창에 WM_MOUSEWHEEL 메시지를 직접 전달."""
     try:
         child = win32gui.WindowFromPoint((cx, cy))
-        if _own_window(child) and hwnd:     # 떠 있는 패널 등 이 앱의 창이면 대상 창으로
-            child = hwnd
+        if hwnd:
+            # 그 위치에 다른 창(사용자가 클릭해 앞으로 온 창, 떠 있는 패널 등)이
+            # 올라와 있으면 그 창이 아니라 캡처 대상 창 안의 자식 창으로 보낸다
+            try:
+                root = ctypes.windll.user32.GetAncestor(child, GA_ROOT)
+            except Exception:
+                root = None
+            if root != hwnd:
+                child = _child_at(hwnd, cx, cy)
         delta = (WHEEL_DELTA if notches > 0 else -WHEEL_DELTA) * abs(notches)
         wparam = (delta & 0xFFFF) << 16
         lparam = ((cy & 0xFFFF) << 16) | (cx & 0xFFFF)
