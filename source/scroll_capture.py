@@ -927,6 +927,22 @@ def set_main_capture_excluded(root, excluded):
         pass
 
 
+def grab_settled(sct, region, max_wait=1.2, step=0.06):
+    """스크롤 애니메이션이 끝나 화면이 멈춘 뒤의 프레임.
+    Chrome 등은 스크롤을 부드럽게 움직이므로, PC 가 바쁘면 정해진 대기 시간 안에
+    애니메이션이 끝나지 않아 '움직이는 도중'을 찍게 된다 → 이동량이 들쭉날쭉해짐.
+    연속 두 장이 같아질 때까지(최대 max_wait초) 기다린다."""
+    a = grab(sct, region)
+    t0 = time.time()
+    while time.time() - t0 < max_wait:
+        time.sleep(step)
+        b = grab(sct, region)
+        if images_equal(a, b):
+            return b
+        a = b
+    return a
+
+
 def find_delta(prev, curr, max_frac=0.6, side_margin=24):
     """
     아래로 몇 px 스크롤됐는지(delta)와 매칭 신뢰도(score)를 반환.
@@ -1161,7 +1177,7 @@ def measure_fixed_regions(sct, region, hwnd, cx, cy, notches, wait, park=None,
         for m in METHODS:
             apply_scroll(hwnd, cx, cy, m, down=True, notches=notches, park=park)
             time.sleep(wait)
-            f = grab(sct, region)
+            f = grab_settled(sct, region)
             if not images_equal(frames[-1], f):
                 got = f
                 downs += 1
@@ -1470,7 +1486,7 @@ def _capture_scrolling_region(region, status_cb, opts):
             top_band = -(-top_band // sc) * sc if top_band > 0 else 0
             bot_band = -(-bot_band // sc) * sc if bot_band > 0 else 0
         H_full = h
-        full0 = replay[0] if replay else grab(sct, region)
+        full0 = replay[0] if replay else grab_settled(sct, region)
         if top_band > 0:
             header_img = full0[0:top_band].copy()
         if bot_band > 0:
@@ -1501,7 +1517,7 @@ def _capture_scrolling_region(region, status_cb, opts):
         def inner(f):   # 측정 프레임(전체 영역) → 고정 상/하단을 뺀 본 캡처 영역
             return np.ascontiguousarray(f[top_band:H_full - bot_band])
 
-        canvas = inner(replay[0]) if replay else grab(sct, region)
+        canvas = inner(replay[0]) if replay else grab_settled(sct, region)
         # 좌/우 밴드가 흰 여백까지 물어 콘텐츠를 자르지 않도록 실제 내용 경계까지 축소
         if left_band > 0:
             left_band = _trim_left_band(canvas, left_band)
@@ -1682,7 +1698,7 @@ def _capture_scrolling_region(region, status_cb, opts):
                     break
                 apply_scroll(hwnd, cx, cy, m, down=True, notches=notches, park=park)
                 time.sleep(wait)
-                cur = grab(sct, region)
+                cur = grab_settled(sct, region)
                 # 매 스텝 '이전/현재 프레임 상단의 같은 내용' = 고정(sticky) 메뉴 → 제외
                 st = sticky_base
                 if handle_sticky or not os.environ.get("SC_NO_STICKY"):
@@ -1736,7 +1752,7 @@ def _capture_scrolling_region(region, status_cb, opts):
                 for m in order()[:1]:      # 확인된 방식만(다른 방식·키 입력을 남발하지 않음)
                     apply_scroll(hwnd, cx, cy, m, down=True, notches=pn, park=park)
                     time.sleep(wait * 1.4)
-                    cur = grab(sct, region)
+                    cur = grab_settled(sct, region)
                     if (not images_equal(C(before), C(cur))
                             and not same_view(C(before), C(cur))):
                         crossed = cur
