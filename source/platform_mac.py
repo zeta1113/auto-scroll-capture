@@ -478,7 +478,7 @@ def key_page(ref, down, notches=1):
     """방향키(↓/↑)를 notches×2 번 대상 앱에 전달.
     (PageDown 은 한 번에 화면 대부분을 넘겨 이어 붙이기가 깨지므로 작은 단위로)"""
     kc = KC_DOWN if down else KC_UP
-    for _ in range(max(1, abs(int(notches)) * 2)):
+    for _ in range(min(12, max(1, abs(int(notches)) * 2))):
         for is_down in (True, False):
             ev = Quartz.CGEventCreateKeyboardEvent(None, kc, is_down)
             if ref is not None:

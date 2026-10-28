@@ -6,6 +6,9 @@
 
   --sticky        : 테스트 창에 중간부터 상단에 붙는 고정(sticky) 바 표시(GitHub 처럼)
   --chrome        : Tk 창 대신 실제 Chrome 으로 테스트 페이지(고정 바 포함)를 열어 캡처
+  --url URL       : 실제 웹페이지를 Chrome 으로 열어 '창 전체'(윈도우 스크롤처럼) 캡처
+                    (줄 표식 검사 없이 결과 이미지·통계만 — 눈으로 비교용)
+  --src DIR       : 다른 버전의 source 폴더로 실행(예: 이전 버전과 비교)
   --stop-after N  : N초 뒤 [중지] → '여기까지' 저장되는지
   --cancel-after N: N초 뒤 [취소] → 저장 없이 CaptureCancelled 로 끝나는지
 
@@ -155,6 +158,68 @@ def _find_chrome_window():
     return (l, t, r - l, b - t)
 
 
+def _window_of_pid(pid):
+    """그 프로세스가 띄운 가장 큰 창의 화면 사각형."""
+    if sys.platform == "darwin":
+        import Quartz
+        best = None
+        for info in Quartz.CGWindowListCopyWindowInfo(
+                Quartz.kCGWindowListOptionOnScreenOnly
+                | Quartz.kCGWindowListExcludeDesktopElements,
+                Quartz.kCGNullWindowID) or []:
+            if int(info.get("kCGWindowOwnerPID", 0)) != pid:
+                continue
+            if int(info.get("kCGWindowLayer", 0)) != 0:
+                continue
+            b = info.get("kCGWindowBounds") or {}
+            r = (int(b["X"]), int(b["Y"]), int(b["Width"]), int(b["Height"]))
+            if r[2] * r[3] > 200000 and (best is None or r[2] * r[3] > best[2] * best[3]):
+                best = r
+        return best
+    import win32gui
+    import win32process
+    found = []
+
+    def cb(h, _):
+        try:
+            if (win32gui.IsWindowVisible(h)
+                    and win32process.GetWindowThreadProcessId(h)[1] == pid):
+                l, t, r, b = win32gui.GetWindowRect(h)
+                if (r - l) * (b - t) > 200000:
+                    found.append(h)
+        except Exception:
+            pass
+        return True
+
+    win32gui.EnumWindows(cb, None)
+    if not found:
+        return None
+    sys.path.insert(0, SRC)
+    import scroll_capture as sc
+    return sc.get_window_rect(found[0])     # 앱의 '윈도우 캡처'와 같은 창 영역
+
+
+def start_chrome_url(url):
+    """실제 웹페이지를 새 Chrome 창으로 열고 '창 전체' 영역을 돌려준다."""
+    exe = _chrome_path()
+    if not exe:
+        return None, None
+    tmp = tempfile.mkdtemp(prefix="sc_chrome_")
+    proc = subprocess.Popen([
+        exe, f"--user-data-dir={os.path.join(tmp, 'profile')}",
+        "--no-first-run", "--no-default-browser-check",
+        "--disable-session-crashed-bubble", "--password-store=basic",
+        "--use-mock-keychain", "--window-position=0,0",
+        "--window-size=1280,1000", "--new-window", url],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    for _ in range(60):
+        time.sleep(0.5)
+        if _window_of_pid(proc.pid):
+            time.sleep(7.0)                 # 페이지 로딩 대기
+            return proc, _window_of_pid(proc.pid)
+    return proc, None
+
+
 def start_chrome():
     exe = _chrome_path()
     if not exe:
@@ -253,9 +318,18 @@ def _arg(name):
     return None
 
 
+def _sarg(name):
+    if name in sys.argv:
+        return sys.argv[sys.argv.index(name) + 1]
+    return None
+
+
 def main():
+    url = _sarg("--url")
+    src = _sarg("--src")
+    skip = {url, src}
     args = [a for a in sys.argv[1:] if not a.startswith("--")
-            and not a.replace(".", "").isdigit()]
+            and not a.replace(".", "").isdigit() and a not in skip]
     out = args[0] if args else os.path.join(HERE, "engine_test.png")
     stop_after, cancel_after = _arg("--stop-after"), _arg("--cancel-after")
     sticky = "--sticky" in sys.argv
@@ -263,7 +337,13 @@ def main():
 
     p = None
     try:
-        if use_chrome:
+        if url:
+            p, region = start_chrome_url(url)
+            if region is None:
+                print("SKIP: Chrome not available")
+                return 0
+            cell = CELL
+        elif use_chrome:
             p, region = start_chrome()
             if region is None:
                 print("SKIP: Chrome not available")
@@ -289,13 +369,19 @@ def main():
         print("target region:", region, flush=True)
         time.sleep(1.0)
 
-        sys.path.insert(0, SRC)
+        if src:                                  # 다른 버전 소스로 실행
+            for k in [k for k in sys.modules if k in ("scroll_capture", "updater",
+                                                       "version", "platform_mac")]:
+                del sys.modules[k]
+            sys.path.insert(0, os.path.abspath(src))
+        else:
+            sys.path.insert(0, SRC)
         import threading
         import scroll_capture as sc
-        ctl = sc.CaptureControl()
-        if stop_after:
+        ctl = sc.CaptureControl() if hasattr(sc, "CaptureControl") else None
+        if stop_after and ctl:
             threading.Timer(stop_after, ctl.stop.set).start()
-        if cancel_after:
+        if cancel_after and ctl:
             threading.Timer(cancel_after, ctl.cancel.set).start()
         # 포인터를 영역 밖(왼쪽 가장자리)에 두고, 캡처 중 포인터가 움직이는지 기록
         def get_pos():
@@ -331,10 +417,11 @@ def main():
         threading.Thread(target=sampler, daemon=True).start()
         t0 = time.time()
         try:
-            img = sc.capture_scrolling_region(
-                region, lambda m: None,
-                {"auto_top": True, "speed": 1.0, "control": ctl})
-        except sc.CaptureCancelled:
+            opts = {"auto_top": True, "speed": 1.0}
+            if ctl:
+                opts["control"] = ctl
+            img = sc.capture_scrolling_region(region, lambda m: None, opts)
+        except getattr(sc, "CaptureCancelled", KeyboardInterrupt):
             print("cancelled (nothing saved)")
             print("PASS" if cancel_after else "FAIL: unexpected cancel")
             return 0 if cancel_after else 1
@@ -353,7 +440,10 @@ def main():
         ratio = img.shape[0] / (region[3] * scale)
         print(f"result: {img.shape[1]}x{img.shape[0]}  scale={scale:.2f}  "
               f"height ratio={ratio:.1f}  time={dt:.0f}s  "
-              f"methods={dict(sc.METHOD_STATS)}  -> {out}", flush=True)
+              f"methods={dict(getattr(sc, 'METHOD_STATS', {}))}  -> {out}", flush=True)
+        if url:                                  # 실제 페이지: 이미지 비교용(검사 없음)
+            print("DONE")
+            return 0
         if stop_after:
             ok = ctl.stopped and 1.0 <= ratio < 9
             print(f"stopped={ctl.stopped}")

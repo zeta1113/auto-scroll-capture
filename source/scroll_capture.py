@@ -813,7 +813,14 @@ def _key(hwnd, cx, cy, down, notches=1):
     (PageDown 은 한 번에 화면 대부분을 넘겨 이어 붙이기가 깨지므로 작은 단위로)"""
     ensure_foreground(hwnd)
     key = win32con.VK_DOWN if down else win32con.VK_UP
-    for _ in range(max(1, abs(int(notches)) * 2)):
+    for _ in range(min(12, max(1, abs(int(notches)) * 2))):
+        # 키 입력은 '앞에 있는 창'으로 가므로, 사용자가 다른 창을 눌렀으면 보내지 않음
+        try:
+            fg = ctypes.windll.user32.GetAncestor(win32gui.GetForegroundWindow(), GA_ROOT)
+            if hwnd and fg != hwnd:
+                return
+        except Exception:
+            pass
         win32api.keybd_event(key, 0, 0, 0)
         time.sleep(0.015)
         win32api.keybd_event(key, 0, win32con.KEYEVENTF_KEYUP, 0)
@@ -933,21 +940,29 @@ def find_delta(prev, curr, max_frac=0.6, side_margin=24):
     cg = cv2.cvtColor(curr, cv2.COLOR_BGR2GRAY)
 
     mx = min(side_margin, max(1, W // 4))
-    ty = max(4, H // 20)
-    th = max(80, H // 3)           # 키 큰 템플릿
-    if ty + th >= H - 2:
-        th = H - 2 - ty
-    templ = cg[ty:ty + th, mx:W - mx]
-
     maxd = max(4, int(H * max_frac))
-    y1 = min(H, ty + maxd + th)
-    field = pg[ty:y1, mx:W - mx]   # ty에서 시작 → field 내 y좌표가 곧 delta
-    if field.shape[0] < templ.shape[0] + 1 or templ.shape[1] > field.shape[1]:
-        return 0, 0.0
 
-    res = cv2.matchTemplate(field, templ, cv2.TM_CCOEFF_NORMED)
-    _, maxv, _, maxloc = cv2.minMaxLoc(res)
-    return maxloc[1], float(maxv)
+    def match(ty, th):
+        if ty + th >= H - 2:
+            th = H - 2 - ty
+        if th < 20:
+            return 0, 0.0
+        templ = cg[ty:ty + th, mx:W - mx]
+        y1 = min(H, ty + maxd + th)
+        field = pg[ty:y1, mx:W - mx]   # ty에서 시작 → field 내 y좌표가 곧 delta
+        if field.shape[0] < templ.shape[0] + 1 or templ.shape[1] > field.shape[1]:
+            return 0, 0.0
+        res = cv2.matchTemplate(field, templ, cv2.TM_CCOEFF_NORMED)
+        _, maxv, _, maxloc = cv2.minMaxLoc(res)
+        return maxloc[1], float(maxv)
+
+    # 위쪽 기준(기본): 키 큰 템플릿으로 반복 요소 오매칭 방지
+    d1, s1 = match(max(4, H // 20), max(80, H // 3))
+    # 중간 기준: 위쪽에 고정(sticky) 메뉴가 막 나타나 위쪽 기준이 흐려질 때 대비
+    d2, s2 = match(int(H * 0.3), max(60, H // 4))
+    if s2 > s1 + 0.15 and d2 > 2:
+        return d2, s2
+    return d1, s1
 
 
 def mostly_same(a, b, frac=0.15, row_thr=2.5):
@@ -1642,6 +1657,11 @@ def _capture_scrolling_region(region, status_cb, opts):
                     pref = METHODS.index(m)
                     _count_method(m)
                     break
+                if (not images_equal(C(before), C(cur))
+                        and not mostly_same(C(before), C(cur))):
+                    # 움직였는데 정합만 실패 → 다른 방식을 더 실행하면 이동이 겹치므로 중단
+                    pref = METHODS.index(m)
+                    break
             if ctl is not None and ctl.stopped:
                 break
             if best is not None:
@@ -1658,18 +1678,27 @@ def _capture_scrolling_region(region, status_cb, opts):
             # (b) 화면이 실제로 스크롤됐으나 정합 실패 → 직전 delta로 진행
             #     (일부만 바뀐 경우 = 떠 있는 버튼/마우스 오버 → 스크롤 아님)
             if not images_equal(C(before), C(cur)) and not mostly_same(C(before), C(cur)):
-                d = last_delta if last_delta > 2 else h // 4
-                place(cur, d)
+                st = max(sticky_base, _sticky_rows(before, cur, cl, cr, h))
+                delta, score = find_delta(before[st:h, cl:cr], cur[st:h, cl:cr],
+                                          max_frac=0.95)
+                if 2 < delta <= h - st and score >= 0.35:
+                    d = delta
+                else:
+                    d = last_delta if last_delta > 2 else h // 4
+                    st = max(st, last_place["st"])   # 직전 고정 메뉴 높이는 계속 제외
+                    if d > h - st:
+                        st = 0
+                place(cur, d, st)
                 prev = cur
                 status_cb(cap_fmt.format(h=canvas.shape[0]))
                 continue
 
             # (c) 변화 없음 → 점점 큰 스크롤로 단색구간/바닥 판별
             crossed = None
-            for pn in (8, 20, 45):
+            for pn in (6, 15):
                 if halted():
                     break
-                for m in order():
+                for m in order()[:1]:      # 확인된 방식만(다른 방식·키 입력을 남발하지 않음)
                     apply_scroll(hwnd, cx, cy, m, down=True, notches=pn, park=park)
                     time.sleep(wait * 1.4)
                     cur = grab(sct, region)
@@ -1684,9 +1713,14 @@ def _capture_scrolling_region(region, status_cb, opts):
                 break  # 진짜 바닥(또는 중지)
 
             cur = crossed
-            delta, score = find_delta(C(before), C(cur), max_frac=0.95)
-            d = delta if (2 < delta <= h and score >= SCORE_THR) else h
-            place(cur, d)
+            st = max(sticky_base, _sticky_rows(before, cur, cl, cr, h))
+            delta, score = find_delta(before[st:h, cl:cr], cur[st:h, cl:cr],
+                                      max_frac=0.95)
+            if 2 < delta <= h - st and score >= SCORE_THR:
+                d = delta
+            else:
+                d, st = h, 0
+            place(cur, d, st)
             prev = cur
             status_cb(cap_fmt.format(h=canvas.shape[0]))
             continue
@@ -4090,7 +4124,7 @@ class App:
                     try:
                         photo = ImageTk.PhotoImage(im)
                         self._thumbs.append(photo)
-                        lbl.config(image=photo, text="", width=0)
+                        lbl.config(image=photo, text="", width=0, height=0)
                     except Exception:
                         pass
             try:

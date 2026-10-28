@@ -103,6 +103,19 @@ jobs:
           python tools/engine_test.py "engine_chrome_${{ matrix.arch }}.png" --chrome 2>&1 | tee engine_chrome_${{ matrix.arch }}.txt
           echo "::notice title=engine-chrome ${{ matrix.arch }}::$(grep -E 'pointer:|result:|lines:|PASS|FAIL|SKIP|Error' engine_chrome_${{ matrix.arch }}.txt | tr '\n' ' ')"
 
+      - name: Real page capture
+        continue-on-error: true
+        timeout-minutes: 10
+        run: |
+          python tools/engine_test.py page_new_${{ matrix.arch }}.png --url https://github.com/jiwoochris/artex-global 2>&1 | tee page_new_${{ matrix.arch }}.txt
+          echo "::notice title=page ${{ matrix.arch }}::$(grep -E 'region|pointer:|result:|DONE|Error' page_new_${{ matrix.arch }}.txt | tr '\n' ' ')"
+      - name: Publish images
+        if: always()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python tools/publish_images.py ci-art-mac-${{ matrix.arch }} "page_*.png" "page_*.txt" "engine_*.png"
+
       - name: Build app + DMG
         run: |
           set +e
@@ -164,6 +177,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ env.TAG || github.ref }}
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -179,6 +193,26 @@ jobs:
             python tools/engine_test.py "engine_${n}.png" $m 2>&1 | tee "engine_${n}.txt"
             echo "::notice title=engine ${n}::$(grep -E 'pointer:|result:|lines:|PASS|FAIL|SKIP|Error' "engine_${n}.txt" | tr '\n' ' ')"
           done
+      - name: Real page capture (new vs v1.4.19)
+        continue-on-error: true
+        timeout-minutes: 15
+        shell: bash
+        run: |
+          mkdir -p old
+          for f in scroll_capture.py version.py updater.py; do git show v1.4.19:source/$f > old/$f; done
+          cp -r source/assets old/
+          URL=https://github.com/jiwoochris/artex-global
+          python tools/engine_test.py page_new_win.png --url $URL 2>&1 | tee page_new_win.txt
+          python tools/engine_test.py page_old_win.png --url $URL --src old 2>&1 | tee page_old_win.txt
+          echo "::notice title=page new win::$(grep -E 'region|pointer:|result:|DONE|Error' page_new_win.txt | tr '\n' ' ')"
+          echo "::notice title=page old win::$(grep -E 'region|pointer:|result:|DONE|Error' page_old_win.txt | tr '\n' ' ')"
+      - name: Publish images
+        if: always()
+        continue-on-error: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python tools/publish_images.py ci-art-win "page_*.png" "page_*.txt" "engine_*.png"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
