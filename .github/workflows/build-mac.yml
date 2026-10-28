@@ -103,8 +103,7 @@ jobs:
           # Chrome 스크롤 방식별 실험(포인터 이동량 비교)
           for mm in key sess hid; do
             SCROLLCAPTURE_METHODS=$mm python tools/engine_test.py "engine_chrome_${mm}_${{ matrix.arch }}.png" --chrome 2>&1 | tee engine_chrome_${mm}_${{ matrix.arch }}.txt
-            echo "::notice title=chrome-only-${mm} ${{ matrix.arch }}::$(grep -E 'pointer:|methods|lines:|PASS|FAIL' engine_chrome_${mm}_${{ matrix.arch }}.txt | tr '
-' ' ' | cut -c1-400)"
+            echo "::notice title=chrome-only-${mm} ${{ matrix.arch }}::$(grep -E 'pointer:|methods|lines:|PASS|FAIL' engine_chrome_${mm}_${{ matrix.arch }}.txt | tr '\n' ' ' | cut -c1-400)"
           done
           python tools/engine_test.py "engine_chrome_${{ matrix.arch }}.png" --chrome 2>&1 | tee engine_chrome_${{ matrix.arch }}.txt
           echo "::notice title=engine-chrome ${{ matrix.arch }}::$(grep -E 'pointer:|result:|lines:|PASS|FAIL|SKIP|Error' engine_chrome_${{ matrix.arch }}.txt | tr '\n' ' ')"
