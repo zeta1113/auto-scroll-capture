@@ -202,8 +202,13 @@ jobs:
           for f in scroll_capture.py version.py updater.py; do git show v1.4.19:source/$f > old/$f; done
           cp -r source/assets old/
           URL=https://github.com/jiwoochris/artex-global
+          # 첫 Chrome 실행(첫 실행 안내 등) 영향을 없애려고 한 번 미리 실행
+          python tools/engine_test.py page_warm_win.png --url $URL 2>&1 | tee page_warm_win.txt
           python tools/engine_test.py page_new_win.png --url $URL 2>&1 | tee page_new_win.txt
           python tools/engine_test.py page_old_win.png --url $URL --src old 2>&1 | tee page_old_win.txt
+          python tools/engine_test.py page_new2_win.png --url $URL 2>&1 | tee page_new2_win.txt
+          echo "::notice title=page warm win::$(grep -E 'result:' page_warm_win.txt)"
+          echo "::notice title=page new2 win::$(grep -E 'result:' page_new2_win.txt)"
           echo "::notice title=page new win::$(grep -E 'region|pointer:|result:|DONE|Error' page_new_win.txt | tr '\n' ' ')"
           echo "::notice title=page old win::$(grep -E 'region|pointer:|result:|DONE|Error' page_old_win.txt | tr '\n' ' ')"
       - name: Publish images
