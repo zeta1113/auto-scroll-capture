@@ -210,7 +210,7 @@ def start_chrome_url(url):
         "--no-first-run", "--no-default-browser-check",
         "--disable-session-crashed-bubble", "--password-store=basic",
         "--use-mock-keychain", "--window-position=0,0",
-        "--window-size=1280,1000", "--new-window", url],
+        "--start-maximized", "--new-window", url],
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     for _ in range(60):
         time.sleep(0.5)

@@ -959,8 +959,10 @@ def find_delta(prev, curr, max_frac=0.6, side_margin=24):
     # 위쪽 기준(기본): 키 큰 템플릿으로 반복 요소 오매칭 방지
     d1, s1 = match(max(4, H // 20), max(80, H // 3))
     # 중간 기준: 위쪽에 고정(sticky) 메뉴가 막 나타나 위쪽 기준이 흐려질 때 대비
+    if s1 >= 0.5:
+        return d1, s1
     d2, s2 = match(int(H * 0.3), max(60, H // 4))
-    if s2 > s1 + 0.15 and d2 > 2:
+    if s2 >= 0.8 and d2 > 2:
         return d2, s2
     return d1, s1
 
@@ -973,6 +975,18 @@ def mostly_same(a, b, frac=0.15, row_thr=2.5):
         return False
     rd = np.mean(np.abs(a.astype(np.int16) - b.astype(np.int16)), axis=(1, 2))
     return float((rd > row_thr).mean()) < frac
+
+
+def same_view(a, b):
+    """같은 화면(스크롤되지 않음)인지. 완전히 같거나, 일부만 바뀌었고(떠 있는 버튼·마우스
+    오버) 같은 위치에서 거의 완전히 일치할 때만 True.
+    (여백이 많은 페이지는 실제로 스크롤돼도 바뀐 줄이 적으므로 위치 일치까지 확인)"""
+    if images_equal(a, b):
+        return True
+    if not mostly_same(a, b):
+        return False
+    d, score = find_delta(a, b, max_frac=0.6)
+    return d <= 2 and score >= 0.9
 
 
 def images_equal(a, b, thresh=1.2):
@@ -1033,7 +1047,7 @@ def probe_methods(sct, region, hwnd, cx, cy, notches, wait):
         apply_scroll(hwnd, cx, cy, m, down=down, notches=notches)
         time.sleep(wait)
         b = grab(sct, region)
-        if images_equal(a, b) or mostly_same(a, b):
+        if same_view(a, b):
             continue
         went_down = _moved_down(a, b)
         went_up = (not went_down) and _moved_down(b, a)
@@ -1658,7 +1672,7 @@ def _capture_scrolling_region(region, status_cb, opts):
                     _count_method(m)
                     break
                 if (not images_equal(C(before), C(cur))
-                        and not mostly_same(C(before), C(cur))):
+                        and not same_view(C(before), C(cur))):
                     # 움직였는데 정합만 실패 → 다른 방식을 더 실행하면 이동이 겹치므로 중단
                     pref = METHODS.index(m)
                     break
@@ -1677,17 +1691,12 @@ def _capture_scrolling_region(region, status_cb, opts):
 
             # (b) 화면이 실제로 스크롤됐으나 정합 실패 → 직전 delta로 진행
             #     (일부만 바뀐 경우 = 떠 있는 버튼/마우스 오버 → 스크롤 아님)
-            if not images_equal(C(before), C(cur)) and not mostly_same(C(before), C(cur)):
-                st = max(sticky_base, _sticky_rows(before, cur, cl, cr, h))
-                delta, score = find_delta(before[st:h, cl:cr], cur[st:h, cl:cr],
-                                          max_frac=0.95)
-                if 2 < delta <= h - st and score >= 0.35:
-                    d = delta
-                else:
-                    d = last_delta if last_delta > 2 else h // 4
-                    st = max(st, last_place["st"])   # 직전 고정 메뉴 높이는 계속 제외
-                    if d > h - st:
-                        st = 0
+            if not images_equal(C(before), C(cur)) and not same_view(C(before), C(cur)):
+                st = max(sticky_base, _sticky_rows(before, cur, cl, cr, h),
+                         last_place["st"])            # 고정 메뉴 높이는 계속 제외
+                d = last_delta if last_delta > 2 else h // 4
+                if d > h - st:
+                    st = 0
                 place(cur, d, st)
                 prev = cur
                 status_cb(cap_fmt.format(h=canvas.shape[0]))
@@ -1695,7 +1704,7 @@ def _capture_scrolling_region(region, status_cb, opts):
 
             # (c) 변화 없음 → 점점 큰 스크롤로 단색구간/바닥 판별
             crossed = None
-            for pn in (6, 15):
+            for pn in (8, 20):
                 if halted():
                     break
                 for m in order()[:1]:      # 확인된 방식만(다른 방식·키 입력을 남발하지 않음)
@@ -1703,7 +1712,7 @@ def _capture_scrolling_region(region, status_cb, opts):
                     time.sleep(wait * 1.4)
                     cur = grab(sct, region)
                     if (not images_equal(C(before), C(cur))
-                            and not mostly_same(C(before), C(cur))):
+                            and not same_view(C(before), C(cur))):
                         crossed = cur
                         pref = METHODS.index(m)
                         break
