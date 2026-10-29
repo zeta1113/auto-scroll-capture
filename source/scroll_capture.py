@@ -1724,7 +1724,7 @@ def _capture_scrolling_region(region, status_cb, opts):
 
         grow = {"cand": 0}
 
-        def grow_left(a, b, st):
+        def grow_left(a, b, st, d):
             """캡처 도중 화면에 '붙어' 움직이지 않게 된 왼쪽 열(예: GitHub 릴리스 목록)을
             좌측 고정 밴드에 더한다 — 처음엔 함께 스크롤되다 나중에 붙는 목차가 매 컷
             본문처럼 찍혀 여러 번 반복되는 것 방지. (고정 메뉴 처리 옵션일 때만)"""
@@ -1740,6 +1740,19 @@ def _capture_scrolling_region(region, status_cb, opts):
             if L < max(left_band + 6, 24):      # 비어 있는 여백뿐이면 무시
                 grow["cand"] = 0
                 return
+            # 같은 모양이 일정 간격으로 반복되는 내용(목록 아이콘·줄 표식)은 스크롤 거리가
+            # 간격의 배수면 '안 움직인 것'처럼 보인다 → 스크롤한 만큼 옮긴 자리와도
+            # 일치하면 붙은 목차가 아니라 함께 스크롤되는 내용
+            if 0 < d < h - st - 20:
+                ai = a[st + d:h, cl:L].astype(np.int16)
+                bi = b[st:h - d, cl:L].astype(np.int16)
+                ink = (bi < 235).any(axis=2).any(axis=1)     # 내용이 있는 행만
+                if ink.sum() < 8:
+                    grow["cand"] = 0
+                    return
+                if float(np.abs(ai - bi).mean(axis=(1, 2))[ink].mean()) < 4.0:
+                    grow["cand"] = 0
+                    return
             # 두 스텝 연속 같은 결과일 때만 확정(우연히 같은 한 스텝 오판 방지)
             if abs(grow["cand"] - L) > 4:
                 grow["cand"] = L
@@ -1846,7 +1859,7 @@ def _capture_scrolling_region(region, status_cb, opts):
                 break
             if best is not None:
                 cur, delta, st = best
-                grow_left(before, cur, st)
+                grow_left(before, cur, st, delta)
                 place(cur, delta, st)
                 prev = cur
                 last_delta = delta
