@@ -1,0 +1,5 @@
+target region: (132, 175, 552, 452)
+pointer: moved max 0px during capture (3607 samples)
+result: 552x6981  scale=1.00  height ratio=15.4  time=37s  methods={'send': 58}  -> d_e__sticky_.png
+lines: 240 found ([1]..[240]), sticky bar rows in result=0
+PASS

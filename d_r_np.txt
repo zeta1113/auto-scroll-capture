@@ -1,0 +1,4 @@
+target region: (7, 0, 931, 1005)
+pointer: moved max 505px during capture (3497 samples)
+result: 931x10749  scale=1.00  height ratio=10.7  time=36s  methods={'send': 52}  -> d_r_np.png
+DONE

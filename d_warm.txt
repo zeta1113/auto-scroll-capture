@@ -1,0 +1,4 @@
+target region: (7, 0, 931, 1005)
+pointer: moved max 0px during capture (11881 samples)
+result: 931x20249  scale=1.00  height ratio=20.1  time=123s  methods={'send': 109}  -> d_warm.png
+DONE

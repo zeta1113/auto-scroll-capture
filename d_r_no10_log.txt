@@ -1,0 +1,58 @@
+1793248390.76 version=1.5.10 sticky=False speed=1.0 auto_top=True
+1793248391.23 start region=(7, 0, 931, 1005) img=931x1005 sc=1 hwnd=393264 methods=['send', 'key', 'wheel'] notches=2 wait=0.35
+1793248392.14 probe -> send moved=400 methods=['send', 'key']
+1793248392.14 adapt per_notch=200px -> notches=1 top=3
+1793248396.65 bands top=90 bot=0 left=0 right=28 downs=3 replay=False
+1793248399.27 a m=send st=240 delta=200 score=1.000 off=0
+1793248399.74 a m=send st=369 delta=200 score=0.993 off=200
+1793248400.24 a m=send st=214 delta=200 score=0.977 off=400
+1793248400.72 a m=send st=0 delta=200 score=0.958 off=600
+1793248401.19 a m=send st=426 delta=200 score=1.000 off=800
+1793248401.69 a m=send st=226 delta=200 score=0.978 off=1000
+1793248402.17 a m=send st=26 delta=200 score=0.953 off=1200
+1793248402.65 a m=send st=429 delta=200 score=1.000 off=1400
+1793248403.15 a m=send st=229 delta=200 score=0.937 off=1600
+1793248403.65 a m=send st=29 delta=200 score=0.884 off=1800
+1793248404.12 a m=send st=457 delta=200 score=1.000 off=2000
+1793248404.61 a m=send st=457 delta=200 score=1.000 off=2200
+1793248405.09 a m=send st=261 delta=200 score=0.980 off=2400
+1793248405.58 a m=send st=61 delta=200 score=0.963 off=2600
+1793248406.08 a m=send st=59 delta=200 score=0.956 off=2800
+1793248406.57 a m=send st=457 delta=200 score=1.000 off=3000
+1793248407.07 a m=send st=457 delta=200 score=1.000 off=3200
+1793248407.56 a m=send st=457 delta=200 score=1.000 off=3400
+1793248408.05 a m=send st=100 delta=200 score=0.931 off=3600
+1793248408.55 a m=send st=246 delta=200 score=0.980 off=3800
+1793248409.03 a m=send st=46 delta=200 score=0.955 off=4000
+1793248409.51 a m=send st=457 delta=200 score=1.000 off=4200
+1793248409.99 a m=send st=321 delta=200 score=0.979 off=4400
+1793248410.49 a m=send st=121 delta=200 score=0.945 off=4600
+1793248410.97 a m=send st=0 delta=200 score=0.956 off=4800
+1793248411.47 a m=send st=199 delta=200 score=0.976 off=5000
+1793248411.95 a m=send st=457 delta=200 score=1.000 off=5200
+1793248412.43 a m=send st=448 delta=200 score=1.000 off=5400
+1793248412.92 a m=send st=248 delta=200 score=0.962 off=5600
+1793248413.40 a m=send st=48 delta=200 score=0.947 off=5800
+1793248413.88 a m=send st=329 delta=200 score=0.983 off=6000
+1793248414.38 a m=send st=457 delta=200 score=1.000 off=6200
+1793248414.85 a m=send st=455 delta=200 score=1.000 off=6400
+1793248415.34 a m=send st=194 delta=200 score=0.940 off=6600
+1793248415.82 a m=send st=55 delta=200 score=0.943 off=6800
+1793248416.30 a m=send st=336 delta=200 score=0.983 off=7000
+1793248416.80 a m=send st=136 delta=200 score=0.928 off=7200
+1793248417.30 a m=send st=457 delta=200 score=1.000 off=7400
+1793248417.78 a m=send st=457 delta=200 score=1.000 off=7600
+1793248418.26 a m=send st=372 delta=200 score=0.992 off=7800
+1793248418.74 a m=send st=172 delta=200 score=0.959 off=8000
+1793248419.23 a m=send st=0 delta=200 score=0.952 off=8200
+1793248419.71 a m=send st=0 delta=200 score=0.956 off=8400
+1793248420.20 a m=send st=133 delta=200 score=0.946 off=8600
+1793248420.68 a m=send st=0 delta=200 score=0.886 off=8800
+1793248421.17 a m=send st=264 delta=200 score=0.881 off=9000
+1793248421.65 a m=send st=116 delta=200 score=0.830 off=9200
+1793248422.13 a m=send st=457 delta=200 score=1.000 off=9400
+1793248422.61 a m=send st=457 delta=144 score=1.000 off=9600
+1793248423.12 a m=send st=0 delta=0 score=1.000 off=9744
+1793248423.67 a m=key st=0 delta=0 score=1.000 off=9744
+1793248424.89 c end (no crossing) off=9744
+1793248424.90 done 931x10749
