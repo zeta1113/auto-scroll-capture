@@ -1106,6 +1106,21 @@ def _check_abort():
 POINTER_MOVING = {"hid", "sess", "wheel"}
 
 
+def _static_edges(a, b, thr=2.5):
+    """두 프레임에서 위/아래로 '변하지 않은' 줄 수(고정 헤더·하단 바). 너무 크면 0."""
+    rd = np.mean(np.abs(a.astype(np.int16) - b.astype(np.int16)), axis=(1, 2))
+    H = len(rd)
+    t = 0
+    while t < H and rd[t] <= thr:
+        t += 1
+    bt = 0
+    while bt < H - t and rd[H - 1 - bt] <= thr:
+        bt += 1
+    if t + bt > H * 0.6:
+        return 0, 0
+    return t, bt
+
+
 def probe_methods(sct, region, hwnd, cx, cy, notches, wait):
     """캡처 시작 시 실제로 동작하는 스크롤 방식을 먼저 찾는다.
     - 포인터를 옮기지 않는 방식(send/hid/key)이 동작하면 이번 캡처에서는 휠(wheel:
@@ -1124,9 +1139,12 @@ def probe_methods(sct, region, hwnd, cx, cy, notches, wait):
         b = grab_settled(sct, region)
         if same_view(a, b):
             continue
-        # 실제 이동량(넓은 범위에서 확실한 일치만)
-        dd, sd = find_delta(a, b, max_frac=0.95)
-        du, su = find_delta(b, a, max_frac=0.95)
+        # 실제 이동량(넓은 범위에서 확실한 일치만). 창 전체 캡처의 브라우저 도구 막대처럼
+        # 움직이지 않는 위/아래 줄은 빼고 잰다(섞이면 일치 점수가 낮아져 측정 실패)
+        t0, b0 = _static_edges(a, b)
+        aa, bb = a[t0:a.shape[0] - b0], b[t0:b.shape[0] - b0]
+        dd, sd = find_delta(aa, bb, max_frac=0.95)
+        du, su = find_delta(bb, aa, max_frac=0.95)
         went_down = dd > 2 and sd >= 0.6 and sd >= su
         went_up = (not went_down) and du > 2 and su >= 0.6
         moved_px = dd if went_down else (du if went_up else None)
@@ -1511,6 +1529,7 @@ def _capture_scrolling_region(region, status_cb, opts):
         h, w = probe.shape[:2]
         del probe
 
+        step_target = h * min(0.45, 0.25 * speed)   # 한 스텝 목표 이동량(px)
         # ---------- 0) 동작하는 스크롤 방식 확인(+ macOS 방향 보정) ----------
         _dbg(f"start region={region} img={w}x{h} sc={sc} hwnd={hwnd} "
              f"methods={METHODS} notches={notches} wait={wait:.2f}")
@@ -1522,7 +1541,7 @@ def _capture_scrolling_region(region, status_cb, opts):
             # 이동량이 달라도(예: Chrome 이 한 번에 60% 이동) 충분히 겹치게 스크롤.
             if moved_px:
                 per = moved_px / float(notches)
-                target = h * min(0.45, 0.25 * speed)
+                target = step_target
                 notches = int(min(12, max(1, round(target / per))))
                 top_notches = int(min(20, max(2, round(target * 2.5 / per))))
                 _dbg(f"adapt per_notch={per:.0f}px -> notches={notches} "
@@ -1580,6 +1599,7 @@ def _capture_scrolling_region(region, status_cb, opts):
             right_band = max(right_band, dright)
             scroll_to_top(sct, region, hwnd, cx, cy, top_notches, wait, park=park)
 
+        step_target = h * min(0.45, 0.25 * speed)   # (고정 상/하단을 뺀 높이 기준)
         # ---------- 2) 아래로 스크롤하며 캡처 (composite 덮어쓰기) ----------
         SCORE_THR = 0.5
         status_cb(S.get("status_capturing", "캡처 중..."))
@@ -1845,10 +1865,27 @@ def _capture_scrolling_region(region, status_cb, opts):
                         cv2.imwrite(os.path.join(fd, f"f{k:02d}_b_cur.png"), cur)
                     except Exception:
                         pass
+                if not (2 < delta <= h - st and score >= SCORE_THR) and st > sticky_base:
+                    # 고정 메뉴 추정(st)이 커서 비교 범위가 좁아졌거나 한 번에 많이 움직였으면
+                    # 고정 메뉴 추정을 빼고 넓은 범위에서 다시 찾는다(엄격한 기준)
+                    d2, s2 = find_delta(before[sticky_base:h, cl:cr],
+                                        cur[sticky_base:h, cl:cr], max_frac=0.95)
+                    if 2 < d2 <= h - sticky_base and s2 >= 0.7:
+                        _dbg(f"a retry wide d={d2} score={s2:.3f}")
+                        delta, score = d2, s2
+                        st = min(st, max(sticky_base, h - d2 - 20))
                 if 2 < delta <= h - st and score >= SCORE_THR:
                     best = (cur, delta, st)
                     pref = METHODS.index(m)
                     _count_method(m)
+                    # 실제 이동량으로 한 번에 스크롤할 칸 수를 계속 보정(목표: 화면 높이의
+                    # 약 1/4). 시작 때 측정이 안 됐거나 브라우저가 이동량을 바꿔도 겹침 유지
+                    if score >= 0.9 and delta > 8:
+                        per = delta / float(notches)
+                        want = int(min(12, max(1, round(step_target / per))))
+                        if want != notches and (want < notches or delta < step_target * 0.6):
+                            _dbg(f"adapt notches {notches} -> {want} (delta={delta})")
+                            notches = want
                     break
                 if (not images_equal(C(before), C(cur))
                         and not same_view(C(before), C(cur))):

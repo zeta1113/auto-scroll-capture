@@ -55,6 +55,9 @@ jobs:
           run a_no05 $A --speed 0.5
           run r_st05 $R --opt-sticky --speed 0.5
           run r_no10 $R --speed 1.0
+          # 시작 시 이동량 측정이 실패한 상황 재현(한 번에 크게 스크롤) → 도중 보정 확인
+          SC_NO_PROBE=1 run r_np $R --speed 1.0
+          SC_NO_PROBE=1 run a_np $A --opt-sticky --speed 1.0
       - name: Publish images
         if: always()
         continue-on-error: true
