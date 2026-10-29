@@ -966,6 +966,7 @@ def grab_settled(sct, region, max_wait=1.2, step=0.06):
         if images_equal(a, b):
             return b
         a = b
+    _dbg("grab not settled (animation still running)")
     return a
 
 
@@ -1058,9 +1059,25 @@ class CaptureControl:
 _CTL = None   # 현재 진행 중인 캡처의 제어 객체(캡처 스레드 1개만 동작)
 
 
-def _dbg(msg):
-    """진단 로그(SC_LOG=<파일> 일 때만 기록)."""
+_DBG_PATH = [None]
+
+
+def _dbg_begin():
+    """스크롤 캡처 1회의 진단 로그 시작. SC_LOG=<파일> 이 없으면 설정 폴더의
+    last_capture_log.txt 에 '마지막 캡처'만 남긴다(문제 재현 시 원인 확인용)."""
     path = os.environ.get("SC_LOG")
+    if not path:
+        try:
+            path = os.path.join(os.path.dirname(config_path()), "last_capture_log.txt")
+            open(path, "w", encoding="utf-8").close()
+        except Exception:
+            path = None
+    _DBG_PATH[0] = path
+
+
+def _dbg(msg):
+    """진단 로그(_dbg_begin 으로 정한 파일에 기록)."""
+    path = _DBG_PATH[0]
     if not path:
         return
     try:
@@ -1423,8 +1440,13 @@ def capture_scrolling_region(region, status_cb, opts=None):
     global _CTL
     opts = opts or {}
     _CTL = opts.get("control")
+    _dbg_begin()
+    _dbg(f"version={APP_VERSION} sticky={opts.get('handle_sticky')} "
+         f"speed={opts.get('speed')} auto_top={opts.get('auto_top')}")
     try:
-        return _capture_scrolling_region(region, status_cb, opts)
+        img = _capture_scrolling_region(region, status_cb, opts)
+        _dbg(f"done {img.shape[1]}x{img.shape[0]}")
+        return img
     finally:
         _CTL = None
         if IS_MAC:
