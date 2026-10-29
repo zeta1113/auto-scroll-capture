@@ -820,11 +820,14 @@ def _sendmsg_wheel(cx, cy, notches, hwnd=None):
         if hwnd:
             # 그 위치에 다른 창(사용자가 클릭해 앞으로 온 창, 떠 있는 패널 등)이
             # 올라와 있으면 그 창이 아니라 캡처 대상 창 안의 자식 창으로 보낸다
+            # (대상 앱 자신의 팝업·툴팁 등 같은 프로세스 창은 예전처럼 그 창으로)
             try:
                 root = ctypes.windll.user32.GetAncestor(child, GA_ROOT)
+                foreign = (root != hwnd and win32process.GetWindowThreadProcessId(root)[1]
+                           != win32process.GetWindowThreadProcessId(hwnd)[1])
             except Exception:
-                root = None
-            if root != hwnd:
+                foreign = False
+            if foreign:
                 child = _child_at(hwnd, cx, cy)
         delta = (WHEEL_DELTA if notches > 0 else -WHEEL_DELTA) * abs(notches)
         wparam = (delta & 0xFFFF) << 16
@@ -1719,6 +1722,35 @@ def _capture_scrolling_region(region, status_cb, opts):
                     left_mask[rr] = True
             report(frame)
 
+        grow = {"cand": 0}
+
+        def grow_left(a, b, st):
+            """캡처 도중 화면에 '붙어' 움직이지 않게 된 왼쪽 열(예: GitHub 릴리스 목록)을
+            좌측 고정 밴드에 더한다 — 처음엔 함께 스크롤되다 나중에 붙는 목차가 매 컷
+            본문처럼 찍혀 여러 번 반복되는 것 방지. (고정 메뉴 처리 옵션일 때만)"""
+            nonlocal left_band, cl, first_left, left_bg
+            if not handle_sticky or cr - cl < max(40, w // 4):
+                return
+            dif = np.abs(a[st:h, cl:cr].astype(np.int16) - b[st:h, cl:cr].astype(np.int16))
+            cm = dif.mean(axis=(0, 2))
+            n, lim = 0, (cr - cl) // 3
+            while n < lim and cm[n] < 1.0:
+                n += 1
+            L = _trim_left_band(b, cl + n) if n >= 6 else 0
+            if L < max(left_band + 6, 24):      # 비어 있는 여백뿐이면 무시
+                grow["cand"] = 0
+                return
+            # 두 스텝 연속 같은 결과일 때만 확정(우연히 같은 한 스텝 오판 방지)
+            if abs(grow["cand"] - L) > 4:
+                grow["cand"] = L
+                return
+            _dbg(f"grow left band {left_band} -> {L}")
+            left_band = L
+            cl = L
+            first_left = frame0[:h, :L].copy()
+            left_bg = content_bg              # 목차 아래로는 페이지 배경색
+            grow["cand"] = 0
+
         def halted():
             """본 캡처 중: 취소면 예외, 중지면 True(여기까지 저장)."""
             if ctl is None:
@@ -1814,6 +1846,7 @@ def _capture_scrolling_region(region, status_cb, opts):
                 break
             if best is not None:
                 cur, delta, st = best
+                grow_left(before, cur, st)
                 place(cur, delta, st)
                 prev = cur
                 last_delta = delta
