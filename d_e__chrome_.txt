@@ -1,0 +1,5 @@
+target region: (88, 155, 860, 531)
+pointer: moved max 0px during capture (1566 samples)
+result: 860x6893  scale=1.00  height ratio=13.0  time=53s  methods={'key': 40}  -> d_e__chrome_.png
+lines: 240 found ([1]..[240]), sticky bar rows in result=36
+PASS

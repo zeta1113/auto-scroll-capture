@@ -1,0 +1,5 @@
+target region: (88, 155, 860, 534)
+pointer: moved max 0px during capture (4352 samples)
+result: 860x6893  scale=1.00  height ratio=12.9  time=146s  methods={'key': 92}  -> d_e__chrome___opt_sticky___speed_0_5_.png
+lines: 240 found ([1]..[240]), sticky bar rows in result=36
+PASS

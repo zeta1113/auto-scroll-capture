@@ -1,0 +1,4 @@
+target region: (0, 25, 980, 640)
+pointer: moved max 0px during capture (9995 samples)
+result: 980x20087  scale=1.00  height ratio=31.4  time=334s  methods={'key': 256}  -> d_a_st05.png
+DONE
