@@ -1209,11 +1209,30 @@ def scroll_to_top(sct, region, hwnd, cx, cy, notches, wait, park=None):
     return pref
 
 
-def _content_span(changed, win=32, frac=0.4):
+def _flat_rows(frames, tol=24, frac=0.03):
+    """
+    모든 프레임에서 '내용이 거의 없는' 행 — (H,) 불리언.
+    한 가지 색이 대부분이거나(빈 여백·가로 테두리 줄 제외 영역) 가로 방향 경계가 거의 없는 행.
+    """
+    out = None
+    for f in frames:
+        fi = f.astype(np.int16)
+        med = np.median(f, axis=1, keepdims=True).astype(np.int16)
+        uni = (np.abs(fi - med).max(axis=2) > tol).mean(axis=1) < frac
+        edge = (np.abs(np.diff(fi, axis=1)).max(axis=2) > tol).mean(axis=1) < frac / 3
+        fl = uni | edge
+        out = fl if out is None else (out & fl)
+    return out
+
+
+def _content_span(changed, win=32, frac=0.4, frames=None):
     """
     changed(불리언 배열)에서 '가장 긴 연속 고밀도 구간'(=스크롤 콘텐츠)의 (상단, 하단) 인덱스.
     - 밀도를 win 창으로 평활화 → 콘텐츠 사이 빈 여백에 강함
     - 고정영역의 짧은 애니메이션/배지는 '짧은 구간'이라 가장 긴 구간(콘텐츠)에 밀려 무시됨
+    - frames 를 주면, 두 콘텐츠 구간 사이의 짧은 '빈 여백 줄' 틈은 이어 붙인다
+      (스크롤 간격과 문단 간격이 우연히 맞아 여백 줄끼리 겹치면 콘텐츠가 끊겨 보여,
+       그 아래 전체를 고정 하단으로 오판하던 문제 — 예: 1920 폭 GitHub 릴리스 페이지)
     구간이 없으면 None.
     """
     n = len(changed)
@@ -1223,19 +1242,32 @@ def _content_span(changed, win=32, frac=0.4):
     win = max(4, min(win, n))
     dens = np.convolve(c, np.ones(win) / win, mode="same")
     dense = dens >= frac
-    best = (0, -1)
+    segs = []
     i = 0
     while i < n:
         if dense[i]:
             j = i
             while j < n and dense[j]:
                 j += 1
-            if (j - 1 - i) > (best[1] - best[0]):
-                best = (i, j - 1)
+            segs.append([i, j - 1])
             i = j
         else:
             i += 1
-    return best if best[1] >= best[0] else None
+    if not segs:
+        return None
+    if frames is not None and len(segs) > 1:
+        flat = _flat_rows(frames)
+        merged = [segs[0]]
+        for s in segs[1:]:
+            p = merged[-1]
+            gap = flat[p[1] + 1:s[0]]
+            if gap.size <= max(80, n // 10) and gap.mean() >= 0.8:
+                p[1] = s[1]
+            else:
+                merged.append(s)
+        segs = merged
+    best = max(segs, key=lambda s: s[1] - s[0])
+    return (best[0], best[1])
 
 
 def measure_fixed_regions(sct, region, hwnd, cx, cy, notches, wait, park=None,
@@ -1324,7 +1356,7 @@ def measure_fixed_regions(sct, region, hwnd, cx, cy, notches, wait, park=None,
         return 0 if v < minsz else min(v, cap)
 
     # 상/하단: '가장 긴 고밀도 구간'(=스크롤 콘텐츠)의 위/아래를 고정영역 경계로 확정
-    span = _content_span(row_changed, win=32, frac=0.4)
+    span = _content_span(row_changed, win=32, frac=0.4, frames=frames)
     if span is not None:
         top = span[0]
         bot = H - 1 - span[1]
@@ -1337,7 +1369,7 @@ def measure_fixed_regions(sct, region, hwnd, cx, cy, notches, wait, park=None,
     right = pick(rights, int(W * 0.45), 6)
 
     # sticky(스크롤 시 나타나는 상단 고정메뉴): 스크롤된 프레임끼리의 고정 상단 - 일반 고정 상단
-    sspan = _content_span(row_changed_scrolled, win=32, frac=0.4)
+    sspan = _content_span(row_changed_scrolled, win=32, frac=0.4, frames=scrolled)
     scrolled_top = 0
     if sspan is not None and sspan[0] >= 16:
         scrolled_top = min(sspan[0] + 6, H // 2)
@@ -1420,7 +1452,7 @@ def detect_fixed_deep(sct, region, hwnd, cx, cy, notches, wait, park):
             k2 -= 1
         lefts.append(l)
         rights.append(rs + sb)
-    rspan = _content_span(rchg, win=32, frac=0.4)
+    rspan = _content_span(rchg, win=32, frac=0.4, frames=frames)
     top = min(rspan[0] + 14, H // 2) if (rspan and rspan[0] >= 16) else 0
     left = min(min(lefts), int(W * 0.45)) if (lefts and min(lefts) >= 6) else 0
     right = min(min(rights), int(W * 0.45)) if (rights and min(rights) >= 6) else 0
@@ -1460,7 +1492,8 @@ def _sticky_rows(a, b, cl, cr, h):
     """
     diff = np.mean(np.abs(a[:h, cl:cr].astype(np.int16)
                           - b[:h, cl:cr].astype(np.int16)), axis=(1, 2))
-    span = _content_span(diff > 2.5, win=24, frac=0.4)
+    span = _content_span(diff > 2.5, win=24, frac=0.4,
+                         frames=[a[:h, cl:cr], b[:h, cl:cr]])
     if span is None or span[0] < 16:
         return 0
     return min(span[0] + 10, h // 2)
@@ -1531,6 +1564,7 @@ def _capture_scrolling_region(region, status_cb, opts):
     pref = 0
     header_img = None
     footer_img = None
+    footer_live = False
 
     with screen_grabber() as sct:
         # 화면 좌표(region, 포인트) ↔ 이미지 픽셀 배율. Windows=1, macOS Retina=2.
@@ -1971,6 +2005,24 @@ def _capture_scrolling_region(region, status_cb, opts):
             status_cb(cap_fmt.format(h=canvas.shape[0]))
             continue
 
+        # 고정 하단은 '마지막 화면'의 하단과 비교 — 첫 화면 하단과 다르면 실제로는 스크롤되는
+        # 내용을 고정 하단으로 오판한 것(첫 화면 하단을 붙이면 페이지 위쪽 내용이 맨 끝에 붙음)
+        # → 마지막 화면의 하단(=마지막 컷 바로 아래 내용)을 붙인다.
+        if footer_img is not None:
+            try:
+                live = grab(sct, (xs, ys, ws, hs))
+                foot = live[H_full - bot_band:H_full]
+                if foot.shape == footer_img.shape and not images_equal(foot, footer_img):
+                    inner_now = np.ascontiguousarray(live[top_band:H_full - bot_band])
+                    if images_equal(inner_now, prev):
+                        footer_img = foot.copy()
+                        footer_live = True
+                    else:
+                        footer_img = None   # 마지막 컷과 화면이 어긋남(중지 등) → 붙이지 않음
+                    _dbg(f"footer not fixed -> {'last screen' if footer_live else 'dropped'}")
+            except Exception as e:
+                _dbg(f"footer check failed: {e}")
+
     # 화면 캡처(그랩) 단계 종료 → 이후는 합성/저장(화면 캡처 없음). '진행중' 오버레이 표시 신호.
     processing_cb = opts.get("processing_cb")
     if processing_cb:
@@ -2023,6 +2075,11 @@ def _capture_scrolling_region(region, status_cb, opts):
     if header_img is not None and header_img.shape[1] == canvas.shape[1]:
         canvas = np.vstack([header_img, canvas])
     if footer_img is not None and footer_img.shape[1] == canvas.shape[1]:
+        if footer_live:   # 스크롤되는 내용이면 좌/우 밴드(사이드바·스크롤바)는 본문과 같이 정리
+            if left_band > 0 and left_bg is not None:
+                footer_img[:, :left_band] = left_bg
+            if right_band > 0:
+                footer_img[:, w - right_band:] = content_bg
         canvas = np.vstack([canvas, footer_img])
     return canvas
 
