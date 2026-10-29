@@ -327,7 +327,7 @@ def _sarg(name):
 def main():
     url = _sarg("--url")
     src = _sarg("--src")
-    skip = {url, src}
+    skip = {url, src, _sarg("--speed")}
     args = [a for a in sys.argv[1:] if not a.startswith("--")
             and not a.replace(".", "").isdigit() and a not in skip]
     out = args[0] if args else os.path.join(HERE, "engine_test.png")
@@ -417,7 +417,9 @@ def main():
         threading.Thread(target=sampler, daemon=True).start()
         t0 = time.time()
         try:
-            opts = {"auto_top": True, "speed": 1.0}
+            # 앱 옵션 재현: --opt-sticky(고정 메뉴 처리 켬), --speed 0.5 등
+            opts = {"auto_top": True, "speed": float(_sarg("--speed") or 1.0),
+                    "handle_sticky": "--opt-sticky" in sys.argv}
             if ctl:
                 opts["control"] = ctl
             img = sc.capture_scrolling_region(region, lambda m: None, opts)

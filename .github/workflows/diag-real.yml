@@ -1,0 +1,104 @@
+# 진단: 실제 GitHub 페이지를 '사용자 설정'(고정 메뉴 처리 켬 · 속도 0.5x 등)으로 캡처
+#  - diag 브랜치 push 또는 수동 실행
+#  - 결과 이미지·로그는 ci-art-diag-* 브랜치로 올림
+name: diag real page
+
+on:
+  push:
+    branches: [diag]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: python -m pip install -r source/requirements.txt
+      - name: Screen 1920x1080
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          try { Set-DisplayResolution -Width 1920 -Height 1080 -Force } catch { Write-Host $_ }
+          python -c "import ctypes; u=ctypes.windll.user32; u.SetProcessDPIAware(); print('screen', u.GetSystemMetrics(0), u.GetSystemMetrics(1))"
+      - name: Real pages (user settings)
+        continue-on-error: true
+        timeout-minutes: 40
+        shell: bash
+        run: |
+          A=https://github.com/jiwoochris/artex-global
+          R=https://github.com/zeta1113/auto-scroll-capture/releases
+          run() {  # 이름 URL 옵션...
+            n=$1; u=$2; shift 2
+            SC_LOG=$PWD/d_${n}_log.txt python tools/engine_test.py d_${n}.png --url $u "$@" 2>&1 | tee d_${n}.txt
+            echo "::notice title=${n}::$(grep -E 'region|result:|Error' d_${n}.txt | tr '\n' ' ')"
+          }
+          run warm  $A --opt-sticky --speed 0.5
+          run a_st05 $A --opt-sticky --speed 0.5
+          run a_st10 $A --opt-sticky --speed 1.0
+          run a_no05 $A --speed 0.5
+          run r_st05 $R --opt-sticky --speed 0.5
+          run r_no10 $R --speed 1.0
+      - name: Publish images
+        if: always()
+        continue-on-error: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python tools/publish_images.py ci-art-diag-win "d_*.png" "d_*.txt"
+
+  mac:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15-intel
+            arch: x86_64
+          - runner: macos-15
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    env:
+      PY_VER: "3.12.8"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Python ${{ env.PY_VER }} (python.org)
+        run: |
+          curl -fsSL -o py.pkg "https://www.python.org/ftp/python/${PY_VER}/python-${PY_VER}-macos11.pkg"
+          sudo installer -pkg py.pkg -target /
+          /Library/Frameworks/Python.framework/Versions/3.12/bin/python3.12 -m venv .venv
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+      - name: Install dependencies
+        run: |
+          python -m pip install -U pip
+          python -m pip download --only-binary=:all: \
+            --platform "macosx_12_0_${{ matrix.arch }}" \
+            --python-version 3.12 --implementation cp \
+            -d wheels -r source/requirements-mac.txt
+          python -m pip install --no-index --find-links wheels -r source/requirements-mac.txt
+      - name: Real pages (user settings)
+        continue-on-error: true
+        timeout-minutes: 45
+        run: |
+          A=https://github.com/jiwoochris/artex-global
+          R=https://github.com/zeta1113/auto-scroll-capture/releases
+          run() {
+            n=$1; u=$2; shift 2
+            SC_LOG=$PWD/d_${n}_log.txt python tools/engine_test.py d_${n}.png --url $u "$@" 2>&1 | tee d_${n}.txt
+            echo "::notice title=${n} ${{ matrix.arch }}::$(grep -E 'region|result:|Error' d_${n}.txt | tr '\n' ' ')"
+          }
+          run a_st05 $A --opt-sticky --speed 0.5
+          run a_st10 $A --opt-sticky --speed 1.0
+          run a_no10 $A --speed 1.0
+          run r_st05 $R --opt-sticky --speed 0.5
+      - name: Publish images
+        if: always()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python tools/publish_images.py ci-art-diag-mac-${{ matrix.arch }} "d_*.png" "d_*.txt"
