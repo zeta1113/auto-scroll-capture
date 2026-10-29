@@ -1374,6 +1374,10 @@ def detect_fixed_deep(sct, region, hwnd, cx, cy, notches, wait, park):
     top = min(rspan[0] + 14, H // 2) if (rspan and rspan[0] >= 16) else 0
     left = min(min(lefts), int(W * 0.45)) if (lefts and min(lefts) >= 6) else 0
     right = min(min(rights), int(W * 0.45)) if (rights and min(rights) >= 6) else 0
+    # 깊은 곳의 '빈 여백'(예: README 옆 흰 공간)은 고정 메뉴가 아님 → 그 위치의 실제 내용
+    # 경계까지 축소(안 그러면 위쪽의 About 사이드바처럼 스크롤되는 내용이 잘려 나감)
+    left = _trim_left_band(frames[-1], left)
+    right = _trim_right_band(frames[-1], right, W)
     return top, left, right
 
 
@@ -1633,7 +1637,7 @@ def _capture_scrolling_region(region, status_cb, opts):
             # 콘텐츠 열만(정렬·변화감지용) + sticky 상단 제외
             return fr[sticky_base:h, cl:cr]
 
-        last_place = {"off": None, "st": 0, "bak": None}
+        last_place = {"off": None, "st": 0, "bak": None, "frame": None}
 
         def place(frame, d, st=None):
             # 콘텐츠 열(cl:cr)과 상단 sticky(st)를 제외하고 덮어씀.
@@ -1664,12 +1668,29 @@ def _capture_scrolling_region(region, status_cb, opts):
             bak = ((canvas[offset:offset + n_bak].copy(),
                     left_mask[offset:offset + n_bak].copy()) if n_bak > 0 else None)
             canvas[offset + st:offset + h, cl:cr] = frame[st:h, cl:cr]
-            last_place.update(off=offset, st=st, bak=bak)
+            pf = last_place.get("frame")
+            last_place.update(off=offset, st=st, bak=bak, frame=frame)
             if left_band and first_left is not None:
                 seg = frame[st:h, :left_band]
-                dl = np.mean(np.abs(seg.astype(np.int16)
-                                    - first_left[st:h].astype(np.int16)), axis=(1, 2))
-                di = np.where(dl > 12)[0]
+                s16 = seg.astype(np.int16)
+                dl = np.mean(np.abs(s16 - first_left[st:h].astype(np.int16)), axis=(1, 2))
+                keep = dl > 12
+                if pf is not None and 0 < d < h:
+                    # 좌측 열에 '페이지와 함께 스크롤된' 내용(전체폭 표·footer)만 복원.
+                    # 직전 프레임과 같은 자리에 그대로 있는 행 = 고정(sticky) 목차 등 → 제외
+                    # (안 그러면 목차가 매 스텝 다시 찍혀 여러 번 반복됨)
+                    p16 = pf[:h, :left_band].astype(np.int16)
+                    rows = np.arange(st, h)
+                    same = np.mean(np.abs(s16 - p16[st:h]), axis=(1, 2)) <= 6
+                    src = rows + d
+                    inb = src < h
+                    moved = np.zeros(len(rows), bool)
+                    if inb.any():
+                        moved[inb] = np.mean(np.abs(s16[inb] - p16[src[inb]]),
+                                             axis=(1, 2)) <= 6
+                    # 새로 드러난 아래쪽 행은 확인할 직전 행이 없으므로 '고정 아님'만 확인
+                    keep &= ~same & (moved | ~inb)
+                di = np.where(keep)[0]
                 if di.size:
                     rr = offset + st + di
                     canvas[rr, :left_band] = seg[di]
@@ -1724,7 +1745,7 @@ def _capture_scrolling_region(region, status_cb, opts):
                 left_mask = np.zeros(canvas.shape[0], bool)
                 last_delta = 0
                 sticky_seen = 0
-                last_place.update(off=None, st=0, bak=None)
+                last_place.update(off=None, st=0, bak=None, frame=None)
 
         for _ in range(8000):
             if halted():
@@ -1853,11 +1874,14 @@ def _capture_scrolling_region(region, status_cb, opts):
     # 좌측: place가 '실제 내용'을 쓴 행(left_mask)은 그대로 두고, 나머지(=사이드바)만 배경색.
     # 우측(스크롤바 자리)은 배경색으로 채우고 마지막 컷 footer만 실제 내용 복원.
     if canvas.shape[0] > h:
+        # 첫 컷 맨 아래의 창 모서리(macOS 둥근 모서리)·가장자리도 좌/우 밴드에 남지 않게
+        # 첫 컷 아래쪽 몇 줄부터 채운다
+        f0 = max(sticky_base + 1, h - 16 * sc)
         if left_band > 0 and left_bg is not None:
-            reg = canvas[h:, :left_band]
-            reg[~left_mask[h:]] = left_bg
+            reg = canvas[f0:, :left_band]
+            reg[~left_mask[f0:]] = left_bg
         if right_band > 0:
-            canvas[h:, w - right_band:] = content_bg
+            canvas[f0:, w - right_band:] = content_bg
             if first_right is not None:
                 cs = prev[:h, w - right_band:]
                 d = np.mean(np.abs(cs.astype(np.int16) - first_right.astype(np.int16)),

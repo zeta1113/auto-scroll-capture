@@ -27,6 +27,16 @@ jobs:
         run: |
           try { Set-DisplayResolution -Width 1920 -Height 1080 -Force } catch { Write-Host $_ }
           python -c "import ctypes; u=ctypes.windll.user32; u.SetProcessDPIAware(); print('screen', u.GetSystemMetrics(0), u.GetSystemMetrics(1))"
+      - name: Engine tests (line markers)
+        continue-on-error: true
+        timeout-minutes: 25
+        shell: bash
+        run: |
+          for m in "" "--sticky" "--chrome" "--chrome --opt-sticky --speed 0.5"; do
+            n="e$(echo "$m" | tr -c 'a-z0-9' '_')"
+            python tools/engine_test.py "d_${n}.png" $m 2>&1 | tee "d_${n}.txt"
+            echo "::notice title=engine ${n}::$(grep -E 'pointer:|result:|lines:|PASS|FAIL|SKIP|Error' "d_${n}.txt" | tr '\n' ' ')"
+          done
       - name: Real pages (user settings)
         continue-on-error: true
         timeout-minutes: 40
@@ -81,6 +91,15 @@ jobs:
             --python-version 3.12 --implementation cp \
             -d wheels -r source/requirements-mac.txt
           python -m pip install --no-index --find-links wheels -r source/requirements-mac.txt
+      - name: Engine tests (line markers)
+        continue-on-error: true
+        timeout-minutes: 25
+        run: |
+          for m in "" "--sticky" "--chrome" "--chrome --opt-sticky --speed 0.5"; do
+            n="e$(echo "$m" | tr -c 'a-z0-9' '_')"
+            python tools/engine_test.py "d_${n}.png" $m 2>&1 | tee "d_${n}.txt"
+            echo "::notice title=engine ${n} ${{ matrix.arch }}::$(grep -E 'pointer:|result:|lines:|PASS|FAIL|SKIP|Error' "d_${n}.txt" | tr '\n' ' ')"
+          done
       - name: Real pages (user settings)
         continue-on-error: true
         timeout-minutes: 45
