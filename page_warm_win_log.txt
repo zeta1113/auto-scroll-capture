@@ -1,0 +1,112 @@
+1793259237.45 version=1.5.12 sticky=False speed=1.0 auto_top=True
+1793259237.91 start region=(7, 0, 990, 693) img=990x693 sc=1 hwnd=262272 methods=['send', 'key', 'wheel'] notches=2 wait=0.35
+1793259238.81 probe -> send moved=400 methods=['send', 'key']
+1793259238.81 adapt per_notch=200px -> notches=1 top=2
+1793259243.20 bands top=90 bot=0 left=0 right=40 downs=3 replay=False
+1793259245.68 a m=send st=0 delta=200 score=1.000 off=0
+1793259246.25 a m=send st=0 delta=200 score=1.000 off=200
+1793259246.83 a m=send st=301 delta=36 score=0.477 off=400
+1793259246.85 a retry wide d=200 score=1.000
+1793259247.41 a m=send st=102 delta=200 score=1.000 off=600
+1793259247.99 a m=send st=0 delta=200 score=1.000 off=800
+1793259248.56 a m=send st=0 delta=200 score=1.000 off=1000
+1793259249.14 a m=send st=0 delta=200 score=1.000 off=1200
+1793259249.75 a m=send st=0 delta=200 score=1.000 off=1400
+1793259250.34 a m=send st=0 delta=200 score=1.000 off=1600
+1793259250.90 a m=send st=0 delta=200 score=1.000 off=1800
+1793259251.47 a m=send st=0 delta=200 score=1.000 off=2000
+1793259252.03 a m=send st=0 delta=200 score=1.000 off=2200
+1793259252.59 a m=send st=28 delta=200 score=1.000 off=2400
+1793259253.15 a m=send st=34 delta=200 score=1.000 off=2600
+1793259253.71 a m=send st=0 delta=200 score=0.996 off=2800
+1793259254.27 a m=send st=61 delta=200 score=1.000 off=3000
+1793259254.84 a m=send st=70 delta=200 score=1.000 off=3200
+1793259255.42 a m=send st=69 delta=200 score=1.000 off=3400
+1793259255.98 a m=send st=56 delta=200 score=1.000 off=3600
+1793259256.56 a m=send st=53 delta=200 score=1.000 off=3800
+1793259257.13 a m=send st=54 delta=200 score=1.000 off=4000
+1793259257.69 a m=send st=55 delta=200 score=1.000 off=4200
+1793259258.25 a m=send st=55 delta=200 score=1.000 off=4400
+1793259258.82 a m=send st=65 delta=200 score=1.000 off=4600
+1793259259.38 a m=send st=64 delta=200 score=1.000 off=4800
+1793259259.95 a m=send st=56 delta=200 score=1.000 off=5000
+1793259260.51 a m=send st=57 delta=200 score=1.000 off=5200
+1793259261.09 a m=send st=65 delta=200 score=1.000 off=5400
+1793259261.65 a m=send st=65 delta=200 score=1.000 off=5600
+1793259262.21 a m=send st=251 delta=200 score=1.000 off=5800
+1793259262.68 a m=send st=60 delta=200 score=1.000 off=6000
+1793259263.15 a m=send st=61 delta=200 score=1.000 off=6200
+1793259263.63 a m=send st=53 delta=200 score=1.000 off=6400
+1793259264.19 a m=send st=54 delta=200 score=1.000 off=6600
+1793259264.75 a m=send st=56 delta=200 score=1.000 off=6800
+1793259265.33 a m=send st=272 delta=198 score=0.444 off=7000
+1793259265.34 a retry wide d=200 score=0.985
+1793259265.92 a m=send st=72 delta=200 score=1.000 off=7200
+1793259266.48 a m=send st=59 delta=200 score=1.000 off=7400
+1793259267.05 a m=send st=148 delta=200 score=1.000 off=7600
+1793259267.53 a m=send st=53 delta=200 score=1.000 off=7800
+1793259268.09 a m=send st=53 delta=200 score=1.000 off=8000
+1793259268.65 a m=send st=53 delta=200 score=1.000 off=8200
+1793259269.23 a m=send st=53 delta=200 score=1.000 off=8400
+1793259269.71 a m=send st=53 delta=200 score=1.000 off=8600
+1793259270.20 a m=send st=53 delta=200 score=1.000 off=8800
+1793259270.68 a m=send st=60 delta=200 score=1.000 off=9000
+1793259271.24 a m=send st=54 delta=200 score=1.000 off=9200
+1793259271.81 a m=send st=53 delta=200 score=1.000 off=9400
+1793259272.38 a m=send st=61 delta=200 score=1.000 off=9600
+1793259272.96 a m=send st=301 delta=63 score=0.138 off=9800
+1793259272.97 a retry wide d=200 score=0.892
+1793259273.53 a m=send st=142 delta=200 score=1.000 off=10000
+1793259274.01 a m=send st=58 delta=200 score=1.000 off=10200
+1793259274.49 a m=send st=57 delta=200 score=1.000 off=10400
+1793259275.05 a m=send st=57 delta=200 score=1.000 off=10600
+1793259275.62 a m=send st=53 delta=200 score=1.000 off=10800
+1793259276.19 a m=send st=53 delta=200 score=1.000 off=11000
+1793259276.75 a m=send st=60 delta=200 score=1.000 off=11200
+1793259277.33 a m=send st=53 delta=200 score=1.000 off=11400
+1793259277.89 a m=send st=216 delta=200 score=1.000 off=11600
+1793259278.46 a m=send st=53 delta=200 score=1.000 off=11800
+1793259279.03 a m=send st=301 delta=177 score=0.281 off=12000
+1793259279.04 a retry wide d=200 score=0.939
+1793259279.61 a m=send st=180 delta=200 score=1.000 off=12200
+1793259280.18 a m=send st=53 delta=200 score=1.000 off=12400
+1793259280.75 a m=send st=53 delta=200 score=1.000 off=12600
+1793259281.30 a m=send st=53 delta=200 score=1.000 off=12800
+1793259281.87 a m=send st=59 delta=200 score=1.000 off=13000
+1793259282.44 a m=send st=301 delta=176 score=0.274 off=13200
+1793259282.45 a retry wide d=200 score=0.842
+1793259283.02 a m=send st=143 delta=200 score=1.000 off=13400
+1793259283.58 a m=send st=85 delta=200 score=1.000 off=13600
+1793259284.16 a m=send st=301 delta=137 score=0.156 off=13800
+1793259284.17 a retry wide d=200 score=0.982
+1793259284.75 a m=send st=109 delta=200 score=1.000 off=14000
+1793259285.32 a m=send st=53 delta=200 score=1.000 off=14200
+1793259285.89 a m=send st=63 delta=200 score=1.000 off=14400
+1793259286.46 a m=send st=53 delta=200 score=1.000 off=14600
+1793259287.03 a m=send st=53 delta=200 score=1.000 off=14800
+1793259287.59 a m=send st=57 delta=200 score=1.000 off=15000
+1793259288.16 a m=send st=53 delta=200 score=1.000 off=15200
+1793259288.74 a m=send st=301 delta=177 score=0.465 off=15400
+1793259288.75 a retry wide d=200 score=0.940
+1793259289.32 a m=send st=109 delta=200 score=1.000 off=15600
+1793259289.89 a m=send st=53 delta=200 score=1.000 off=15800
+1793259290.44 a m=send st=53 delta=200 score=1.000 off=16000
+1793259291.01 a m=send st=62 delta=200 score=1.000 off=16200
+1793259291.49 a m=send st=53 delta=200 score=1.000 off=16400
+1793259291.99 a m=send st=53 delta=200 score=1.000 off=16600
+1793259292.47 a m=send st=53 delta=200 score=1.000 off=16800
+1793259293.04 a m=send st=53 delta=200 score=1.000 off=17000
+1793259293.61 a m=send st=61 delta=200 score=1.000 off=17200
+1793259294.18 a m=send st=53 delta=200 score=1.000 off=17400
+1793259294.76 a m=send st=53 delta=200 score=1.000 off=17600
+1793259295.32 a m=send st=53 delta=200 score=1.000 off=17800
+1793259295.90 a m=send st=75 delta=200 score=1.000 off=18000
+1793259296.45 a m=send st=53 delta=200 score=1.000 off=18200
+1793259297.05 a m=send st=53 delta=200 score=1.000 off=18400
+1793259297.64 a m=send st=210 delta=200 score=1.000 off=18600
+1793259298.23 a m=send st=53 delta=200 score=1.000 off=18800
+1793259298.80 a m=send st=149 delta=97 score=1.000 off=19000
+1793259299.30 a m=send st=0 delta=0 score=1.000 off=19097
+1793259299.84 a m=key st=0 delta=0 score=1.000 off=19097
+1793259301.02 c end (no crossing) off=19097
+1793259301.04 done 990x19790

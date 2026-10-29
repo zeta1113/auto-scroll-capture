@@ -1,0 +1,4 @@
+target region: (7, 0, 990, 693)
+pointer: moved max 0px during capture (6141 samples)
+result: 990x19790  scale=1.00  height ratio=28.6  time=64s  methods={'send': 99}  -> page_new2_win.png
+DONE

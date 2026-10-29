@@ -1,0 +1,5 @@
+target region: (88, 190, 860, 488)
+pointer: moved max 0px during capture (2438 samples)
+result: 860x6901  scale=1.00  height ratio=14.1  time=25s  methods={'send': 36}  -> engine_win__chrome.png
+lines: 240 found ([1]..[240]), sticky bar rows in result=36
+PASS
