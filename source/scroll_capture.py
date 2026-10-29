@@ -1945,6 +1945,10 @@ def _capture_scrolling_region(region, status_cb, opts):
         # 첫 컷 맨 아래의 창 모서리(macOS 둥근 모서리)·가장자리도 좌/우 밴드에 남지 않게
         # 첫 컷 아래쪽 몇 줄부터 채운다
         f0 = max(sticky_base + 1, h - 16 * sc)
+        if left_band > 0 and frame0.shape[1] == canvas.shape[1]:
+            # 첫 화면 범위의 좌측 열은 첫 화면 그대로(캡처 도중 붙은 목차로 판단되기 전에
+            # 찍힌 목차 조각 제거)
+            canvas[:f0, :left_band] = frame0[:f0, :left_band]
         if left_band > 0 and left_bg is not None:
             reg = canvas[f0:, :left_band]
             reg[~left_mask[f0:]] = left_bg
