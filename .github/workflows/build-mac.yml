@@ -218,7 +218,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           for d in fr_warm fr_new2; do for f in $d/*.png; do [ -f "$f" ] && cp "$f" "${d}_$(basename $f)"; done; done
-          python tools/publish_images.py ci-art-win "page_*.png" "page_*.txt" "engine_*.png" "fr_*.png"
+          python tools/publish_images.py ci-art-win "page_*.png" "page_*.txt" "engine_*.png" "engine_*.txt" "fr_*.png"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -1004,12 +1004,24 @@ def find_delta(prev, curr, max_frac=0.6, side_margin=24):
 
     # 위쪽 기준(기본): 키 큰 템플릿으로 반복 요소 오매칭 방지
     d1, s1 = match(max(4, H // 20), max(80, H // 3))
-    # 중간 기준: 위쪽에 고정(sticky) 메뉴가 막 나타나 위쪽 기준이 흐려질 때 대비
-    if s1 >= 0.5:
+    if s1 >= 0.8:
         return d1, s1
-    d2, s2 = match(int(H * 0.3), max(60, H // 4))
-    if s2 >= 0.8 and d2 > 2:
-        return d2, s2
+    # 중간 기준: 위쪽에 고정(sticky) 메뉴가 막 나타나 위쪽 기준이 흐려질 때 대비
+    if s1 < 0.5:
+        d2, s2 = match(int(H * 0.3), max(60, H // 4))
+        if s2 >= 0.8 and d2 > 2:
+            return d2, s2
+    # 아래쪽 기준: 이전 화면의 아래 부분을 현재 화면에서 찾는다. 한 번에 많이 움직이면
+    # (화면의 60% 이상) 위쪽 기준 템플릿이 이전 화면 밖으로 나가 원리상 찾을 수 없음
+    th3 = max(60, H // 5)
+    if H - th3 - 2 > 20:
+        templ = pg[H - th3 - 2:H - 2, mx:W - mx]
+        field = cg[0:H - 2, mx:W - mx]
+        res = cv2.matchTemplate(field, templ, cv2.TM_CCOEFF_NORMED)
+        _, s3, _, loc3 = cv2.minMaxLoc(res)
+        d3 = (H - th3 - 2) - loc3[1]
+        if s3 >= 0.8 and 2 < d3 <= maxd and s3 > s1:
+            return d3, float(s3)
     return d1, s1
 
 
@@ -1865,12 +1877,13 @@ def _capture_scrolling_region(region, status_cb, opts):
                         cv2.imwrite(os.path.join(fd, f"f{k:02d}_b_cur.png"), cur)
                     except Exception:
                         pass
-                if not (2 < delta <= h - st and score >= SCORE_THR) and st > sticky_base:
+                if (not (2 < delta <= h - st and score >= SCORE_THR)
+                        and not images_equal(C(before), C(cur))):
                     # 고정 메뉴 추정(st)이 커서 비교 범위가 좁아졌거나 한 번에 많이 움직였으면
                     # 고정 메뉴 추정을 빼고 넓은 범위에서 다시 찾는다(엄격한 기준)
                     d2, s2 = find_delta(before[sticky_base:h, cl:cr],
                                         cur[sticky_base:h, cl:cr], max_frac=0.95)
-                    if 2 < d2 <= h - sticky_base and s2 >= 0.7:
+                    if 2 < d2 <= h - sticky_base and s2 >= 0.75:
                         _dbg(f"a retry wide d={d2} score={s2:.3f}")
                         delta, score = d2, s2
                         st = min(st, max(sticky_base, h - d2 - 20))
@@ -1880,7 +1893,7 @@ def _capture_scrolling_region(region, status_cb, opts):
                     _count_method(m)
                     # 실제 이동량으로 한 번에 스크롤할 칸 수를 계속 보정(목표: 화면 높이의
                     # 약 1/4). 시작 때 측정이 안 됐거나 브라우저가 이동량을 바꿔도 겹침 유지
-                    if score >= 0.9 and delta > 8:
+                    if score >= 0.75 and delta > 8:
                         per = delta / float(notches)
                         want = int(min(12, max(1, round(step_target / per))))
                         if want != notches and (want < notches or delta < step_target * 0.6):
@@ -1889,8 +1902,12 @@ def _capture_scrolling_region(region, status_cb, opts):
                     break
                 if (not images_equal(C(before), C(cur))
                         and not same_view(C(before), C(cur))):
-                    # 움직였는데 정합만 실패 → 다른 방식을 더 실행하면 이동이 겹치므로 중단
+                    # 움직였는데 정합만 실패 → 다른 방식을 더 실행하면 이동이 겹치므로 중단.
+                    # 한 번에 너무 많이 움직였을 가능성이 크므로 다음부터 칸 수를 절반으로
                     pref = METHODS.index(m)
+                    if notches > 1:
+                        _dbg(f"align failed -> notches {notches} -> {max(1, notches // 2)}")
+                        notches = max(1, notches // 2)
                     break
             if ctl is not None and ctl.stopped:
                 break
