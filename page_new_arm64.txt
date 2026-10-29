@@ -1,0 +1,4 @@
+target region: (0, 25, 980, 640)
+pointer: moved max 0px during capture (4012 samples)
+result: 980x20087  scale=1.00  height ratio=31.4  time=138s  methods={'key': 123}  -> page_new_arm64.png
+DONE
