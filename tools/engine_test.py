@@ -199,6 +199,18 @@ def _window_of_pid(pid):
     return sc.get_window_rect(found[0])     # 앱의 '윈도우 캡처'와 같은 창 영역
 
 
+def _win_height(want):
+    """화면 높이에 맞춘 창 높이(작은 CI 화면에서 창이 화면 밖·작업 표시줄까지 가지 않게)."""
+    try:
+        if sys.platform == "win32":
+            import ctypes
+            sh = ctypes.windll.user32.GetSystemMetrics(1)
+            return int(max(400, min(want, sh - 60 - 70)))   # 위치 60 + 작업 표시줄
+    except Exception:
+        pass
+    return want
+
+
 def start_chrome_url(url):
     """실제 웹페이지를 새 Chrome 창으로 열고 '창 전체' 영역을 돌려준다."""
     exe = _chrome_path()
@@ -234,7 +246,7 @@ def start_chrome():
         "--no-first-run", "--no-default-browser-check",
         "--disable-session-crashed-bubble", "--password-store=basic",
         "--use-mock-keychain", "--window-position=80,60",
-        "--window-size=900,820", "--new-window", url],
+        f"--window-size=900,{_win_height(820)}", "--new-window", url],
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     for _ in range(40):
         time.sleep(0.5)
