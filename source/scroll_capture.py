@@ -4459,8 +4459,9 @@ class App:
             if lbl is not None:
                 pending.append((path, lbl))
         self._load_thumbs_async(pending)
-        # 최대 개수 초과분(가장 오래된 것) 제거
-        rows = [w for w in self.list_inner.winfo_children()
+        # 최대 개수 초과분(화면 맨 아래 = 가장 오래된 것) 제거
+        # (winfo_children 은 '만든 순서'라 방금 넣은 항목이 맨 뒤 → 화면 순서인 pack_slaves 사용)
+        rows = [w for w in self.list_inner.pack_slaves()
                 if getattr(w, "_sc_row", False)]
         for r in rows[self.LIST_MAX:]:
             try:
@@ -4503,7 +4504,7 @@ class App:
         C = MC
         if not hasattr(self, "_thumb_cache"):
             self._thumb_cache = {}
-        kids = self.list_inner.winfo_children()
+        kids = self.list_inner.pack_slaves()     # 화면에 보이는 순서
         first = kids[0] if (top and kids) else None
         row = tk.Frame(self.list_inner, bg=C["white"])
         if first is not None:
@@ -4511,6 +4512,7 @@ class App:
         else:
             row.pack(fill="x")
         row._sc_row = True
+        row._sc_path = path
         inner = tk.Frame(row, bg=C["white"])
         inner.pack(fill="x", padx=4, pady=4)
         pending = None
@@ -4799,6 +4801,37 @@ def _selftest(app, out_path):
     check("freeze_crop", _freeze)
     check("icons", lambda: len(app._icon_imgs))
     check("list_rows", lambda: len(app.list_inner.winfo_children()))
+
+    def _list_prepend():
+        # 목록이 가득 찬 상태(LIST_MAX 초과)에서도 새 파일이 맨 위에 나타나는지
+        import shutil
+        import tempfile
+        saved = app.save_dir.get()
+        tmp = tempfile.mkdtemp(prefix="sc_list_")
+        try:
+            n = app.LIST_MAX + 2
+            for i in range(n):
+                p = os.path.join(tmp, f"old_{i:03d}.png")
+                Image.new("RGB", (4, 4)).save(p)
+                os.utime(p, (1000000 + i, 1000000 + i))
+            app.save_dir.set(tmp)
+            app.refresh_list()
+            for name in ("new_1.png", "new_2.png"):
+                p = os.path.join(tmp, name)
+                Image.new("RGB", (4, 4)).save(p)
+                app._prepend_files([p])
+            rows = [w for w in app.list_inner.pack_slaves()
+                    if getattr(w, "_sc_row", False)]
+            names = [os.path.basename(r._sc_path) for r in rows]
+            if names[:2] != ["new_2.png", "new_1.png"] or len(names) != app.LIST_MAX:
+                raise RuntimeError(f"{len(names)} rows, top={names[:3]}")
+            return names[:2]
+        finally:
+            app.save_dir.set(saved)
+            app.refresh_list()
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    check("list_prepend", _list_prepend)
     check("hotkeys", lambda: {m: v[2] for m, v in app.hotkeys.items() if v})
 
     def _panel():
