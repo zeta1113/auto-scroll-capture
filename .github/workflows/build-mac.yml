@@ -117,7 +117,7 @@ jobs:
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python tools/publish_images.py ci-art-mac-${{ matrix.arch }} "page_*.png" "page_*.txt" "engine_*.png"
+        run: python tools/publish_images.py ci-art-mac-${{ matrix.arch }} "page_*.png" "page_*.txt" "engine_*.png" "engine_*.txt"
 
       - name: Build app + DMG
         run: |

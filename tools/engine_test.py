@@ -70,9 +70,11 @@ def run_target(sticky, right_edge=False):
         txt.insert("end", sp, "r")
         for b in _bits(i):
             txt.insert("end", sp, "k" if b else "w")
-        txt.insert("end", f"  {i:04d} " + ("abcdefghij" * (i % 5 + 1)))
-        if right_edge and i % 4 == 0:      # 창 오른쪽 끝을 넘어가는 띠
+        if right_edge and i % 4 == 0:      # 짧은 글자 + 창 오른쪽 끝을 넘어가는 띠
+            txt.insert("end", f"  {i:04d} abc")
             txt.insert("end", " " * 200, "b")
+        else:
+            txt.insert("end", f"  {i:04d} " + ("abcdefghij" * (i % 5 + 1)))
         txt.insert("end", "\n")
     txt.config(state="disabled")
 
@@ -501,10 +503,14 @@ def main():
             bb, gg, rr = (img[:, x1 - int(10 * scale):x1 - int(2 * scale), k].astype(int)
                           for k in range(3))
             blue = (bb > 200) & (rr < 90) & (gg > 60) & (gg < 150)
-            frac = float((blue.mean(axis=1) > 0.5).mean())
-            print(f"right edge blue rows: {frac:.3f} (scrollbar {sbi}px)", flush=True)
-            if frac < 0.15:
-                problems.append(f"right edge content lost (blue rows {frac:.3f})")
+            rows_b = blue.mean(axis=1) > 0.5
+            n0 = int(region[3] * scale)              # 첫 화면(그대로 찍힌 부분)과 비교
+            f0 = float(rows_b[:n0].mean())
+            frac = float(rows_b[n0:].mean()) if rows_b.size > n0 else 0.0
+            print(f"right edge blue rows: {frac:.3f} (first screen {f0:.3f}, "
+                  f"scrollbar {sbi}px)", flush=True)
+            if f0 < 0.05 or frac < f0 * 0.7:
+                problems.append(f"right edge content lost (blue rows {frac:.3f} vs {f0:.3f})")
             if sbi > 2:
                 # 스크롤바 썸이 결과에 반복해 찍히지 않았는지(첫 화면 1회는 허용)
                 e = img[:, x1 + 1:x1 + sbi - 1].astype(int)
