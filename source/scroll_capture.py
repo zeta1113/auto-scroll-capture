@@ -327,6 +327,18 @@ TR = {
         "btn_open_item": "열기",
         "btn_copy": "복사",
         "btn_delete": "삭제",
+        "viewer_view": "보기",
+        "viewer_draw": "✏ 선 그리기",
+        "viewer_undo": "되돌리기",
+        "viewer_save": "저장",
+        "viewer_save_as": "다른 이름으로 저장",
+        "viewer_fit": "맞춤",
+        "viewer_hint_view": "끌어서 이동 · Ctrl+휠 확대/축소",
+        "viewer_hint_draw": "끌어서 선 그리기 · Ctrl+Z 되돌리기 · Ctrl+S 저장",
+        "viewer_saved_fmt": "저장했습니다: {name}",
+        "viewer_save_fail": "저장에 실패했습니다.",
+        "viewer_open_fail": "이미지를 열 수 없습니다.",
+        "viewer_unsaved": "그린 내용을 저장하지 않았습니다. 저장할까요?",
         "confirm_delete_fmt": "정말 삭제하시겠습니까?\n{name}",
         "delete_fail": "파일 삭제에 실패했습니다.",
         "copied_mark": "✓",
@@ -433,6 +445,18 @@ TR = {
         "btn_open_item": "Open",
         "btn_copy": "Copy",
         "btn_delete": "Delete",
+        "viewer_view": "View",
+        "viewer_draw": "✏ Draw",
+        "viewer_undo": "Undo",
+        "viewer_save": "Save",
+        "viewer_save_as": "Save As",
+        "viewer_fit": "Fit",
+        "viewer_hint_view": "Drag to move · Ctrl+Wheel to zoom",
+        "viewer_hint_draw": "Drag to draw · Ctrl+Z undo · Ctrl+S save",
+        "viewer_saved_fmt": "Saved: {name}",
+        "viewer_save_fail": "Failed to save the image.",
+        "viewer_open_fail": "Cannot open the image.",
+        "viewer_unsaved": "Your drawing is not saved. Save it now?",
         "confirm_delete_fmt": "Are you sure you want to delete?\n{name}",
         "delete_fail": "Failed to delete the file.",
         "copied_mark": "✓",
@@ -539,6 +563,18 @@ TR = {
         "btn_open_item": "開く",
         "btn_copy": "コピー",
         "btn_delete": "削除",
+        "viewer_view": "表示",
+        "viewer_draw": "✏ 線を描く",
+        "viewer_undo": "元に戻す",
+        "viewer_save": "保存",
+        "viewer_save_as": "名前を付けて保存",
+        "viewer_fit": "合わせる",
+        "viewer_hint_view": "ドラッグで移動 · Ctrl+ホイールで拡大/縮小",
+        "viewer_hint_draw": "ドラッグで線を描く · Ctrl+Z 元に戻す · Ctrl+S 保存",
+        "viewer_saved_fmt": "保存しました: {name}",
+        "viewer_save_fail": "保存に失敗しました。",
+        "viewer_open_fail": "画像を開けません。",
+        "viewer_unsaved": "描いた内容が保存されていません。保存しますか？",
         "confirm_delete_fmt": "本当に削除しますか？\n{name}",
         "delete_fail": "ファイルの削除に失敗しました。",
         "copied_mark": "✓",
@@ -645,6 +681,18 @@ TR = {
         "btn_open_item": "打开",
         "btn_copy": "复制",
         "btn_delete": "删除",
+        "viewer_view": "查看",
+        "viewer_draw": "✏ 画线",
+        "viewer_undo": "撤销",
+        "viewer_save": "保存",
+        "viewer_save_as": "另存为",
+        "viewer_fit": "适应",
+        "viewer_hint_view": "拖动移动 · Ctrl+滚轮缩放",
+        "viewer_hint_draw": "拖动画线 · Ctrl+Z 撤销 · Ctrl+S 保存",
+        "viewer_saved_fmt": "已保存: {name}",
+        "viewer_save_fail": "保存失败。",
+        "viewer_open_fail": "无法打开图像。",
+        "viewer_unsaved": "画的内容尚未保存。现在保存吗？",
         "confirm_delete_fmt": "确定要删除吗？\n{name}",
         "delete_fail": "删除文件失败。",
         "copied_mark": "✓",
@@ -1785,8 +1833,8 @@ def _capture_scrolling_region(region, status_cb, opts):
                         right_stat[1] += int(inb.sum())
                         pmv = np.abs(ri - q16[rows[inb] + d]).max(axis=2) <= 12
                         pch = np.abs(ri - q16[rows[inb]]).max(axis=2) > 24
-                        right_col_ev += (pmv & pch).sum(axis=0)
-                        right_col_nm += (~pmv & pch).sum(axis=0)
+                        right_col_ev[:] += (pmv & pch).sum(axis=0)
+                        right_col_nm[:] += (~pmv & pch).sum(axis=0)
                         right_steps[0] += 1
                 canvas[offset + st:offset + h, rb:] = frame[st:h, rb:]
             if left_band and first_left is not None:
@@ -2100,6 +2148,9 @@ def _capture_scrolling_region(region, status_cb, opts):
         if left_band > 0 and left_bg is not None:
             reg = canvas[f0:, :left_band]
             reg[~left_mask[f0:]] = left_bg
+        # 지울 열의 첫 화면 범위는 첫 화면 그대로(place 가 나중 프레임의 썸으로 덮었을 수 있음)
+        if sb_cols > 0 and frame0.shape[1] == canvas.shape[1]:
+            canvas[:f0, w - sb_cols:] = frame0[:f0, w - sb_cols:]
         if right_content and sb_cols > 0:
             canvas[f0:, w - sb_cols:] = content_bg
         if right_band > 0 and not right_content:
@@ -3412,6 +3463,429 @@ def pick_font_family():
 
 
 # ==================================================================
+# 파일 뷰어 — 확대/축소·스크롤, 편집 모드(선 그리기)·저장
+# ==================================================================
+class ImageViewer:
+    """캡처 파일 보기 창. 긴 스크롤 캡처도 보이는 부분만 그려 가볍게 동작.
+    선은 '이미지 픽셀' 좌표로 기억해 두었다가 저장할 때 이미지에 그린다."""
+
+    COLORS = ["#E53935", "#1E88E5", "#43A047", "#FDD835", "#000000", "#FFFFFF"]
+    WIDTHS = [3, 6, 12]          # 선 굵기(이미지 픽셀)
+    ZOOMS = [0.1, 0.15, 0.25, 0.33, 0.5, 0.67, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0, 4.0]
+
+    def __init__(self, app, path, on_saved=None, on_close=None):
+        self.app = app
+        self.t = app.t
+        self.path = path
+        self.on_saved = on_saved
+        self.on_close = on_close
+        with Image.open(path) as im:
+            self.img = im.convert("RGB")
+        self.strokes = []            # [(색, 굵기, [(x, y), ...])] — 이미지 픽셀 좌표
+        self.cur = None              # 그리는 중인 선
+        self.cur_item = None
+        self.mode = "view"
+        self.color = self.COLORS[0]
+        self.width = self.WIDTHS[1]
+        self.dirty = False
+        self.scale = 1.0
+        self._photo = None
+        self._render_job = None
+        self._fitted = False
+
+        C = MC
+        app_ = app
+        self.top = tk.Toplevel(app_.root)
+        self.top.configure(bg=C["bg"])
+        self.top.title(os.path.basename(path))
+        sw, sh = self.top.winfo_screenwidth(), self.top.winfo_screenheight()
+        W, H = self.img.size
+        ww = int(min(sw * 0.85, max(720, W + 60)))
+        wh = int(sh * 0.85)
+        self.top.geometry(f"{ww}x{wh}+{(sw - ww) // 2}+{max(0, (sh - wh) // 3)}")
+        self.top.minsize(560, 360)
+        try:
+            ico = resource_path("icon.ico")
+            if os.path.isfile(ico):
+                self.top.iconbitmap(ico)
+        except Exception:
+            pass
+
+        # ----- 도구 막대 -----
+        bar = tk.Frame(self.top, bg=C["surface"])
+        bar.pack(side="top", fill="x")
+        inner = tk.Frame(bar, bg=C["surface"])
+        inner.pack(side="left", padx=8, pady=6)
+
+        def btn(parent, key, cmd, kind="secondary", text=None):
+            b = RoundButton(parent, text=text or self.t(key), kind=kind, command=cmd,
+                            font=app_.f_cap, padx=10, pady=4)
+            b.configure(bg=C["surface"])
+            b.pack(side="left", padx=2)
+            return b
+
+        self.b_view = btn(inner, "viewer_view", lambda: self.set_mode("view"), "primary")
+        self.b_draw = btn(inner, "viewer_draw", lambda: self.set_mode("draw"))
+        tk.Frame(inner, width=10, bg=C["surface"]).pack(side="left")
+        # 색상 견본
+        self.sw_items = []
+        for col in self.COLORS:
+            c = tk.Canvas(inner, width=22, height=22, bg=C["surface"],
+                          highlightthickness=0, cursor="hand2")
+            c.pack(side="left", padx=1)
+            c.bind("<Button-1>", lambda e, cc=col: self.set_color(cc))
+            self.sw_items.append((col, c))
+        tk.Frame(inner, width=8, bg=C["surface"]).pack(side="left")
+        # 굵기
+        self.wd_items = []
+        for wv in self.WIDTHS:
+            c = tk.Canvas(inner, width=24, height=22, bg=C["surface"],
+                          highlightthickness=0, cursor="hand2")
+            c.pack(side="left", padx=1)
+            c.bind("<Button-1>", lambda e, v=wv: self.set_width(v))
+            self.wd_items.append((wv, c))
+        tk.Frame(inner, width=8, bg=C["surface"]).pack(side="left")
+        self.b_undo = btn(inner, "viewer_undo", self.undo)
+        self.b_save = btn(inner, "viewer_save", self.save, "primary")
+        btn(inner, "viewer_save_as", self.save_as)
+
+        zf = tk.Frame(bar, bg=C["surface"])
+        zf.pack(side="right", padx=8, pady=6)
+        btn(zf, None, lambda: self.zoom_step(-1), text="−")
+        self.zoom_lbl = tk.Label(zf, text="100%", width=6, bg=C["surface"],
+                                 fg=C["text"], font=app_.f_cap)
+        self.zoom_lbl.pack(side="left")
+        btn(zf, None, lambda: self.zoom_step(1), text="+")
+        btn(zf, "viewer_fit", self.fit)
+        btn(zf, None, lambda: self.set_zoom(1.0), text="100%")
+
+        # ----- 상태 줄 -----
+        self.status = tk.Label(self.top, anchor="w", bg=C["bg"], fg=C["muted"],
+                               font=app_.f_cap)
+        self.status.pack(side="bottom", fill="x", padx=8, pady=(2, 4))
+
+        # ----- 이미지 영역 -----
+        body = tk.Frame(self.top, bg=C["bg"])
+        body.pack(side="top", fill="both", expand=True)
+        self.cv = tk.Canvas(body, bg="#9E9E9E", highlightthickness=0,
+                            xscrollincrement=1, yscrollincrement=1)
+        vs = ttk.Scrollbar(body, orient="vertical", command=self._yview)
+        hs = ttk.Scrollbar(body, orient="horizontal", command=self._xview)
+        self.cv.configure(yscrollcommand=vs.set, xscrollcommand=hs.set)
+        vs.pack(side="right", fill="y")
+        hs.pack(side="bottom", fill="x")
+        self.cv.pack(side="left", fill="both", expand=True)
+
+        cv = self.cv
+        cv.bind("<Configure>", self._on_configure)
+        cv.bind("<ButtonPress-1>", self._on_press)
+        cv.bind("<B1-Motion>", self._on_drag)
+        cv.bind("<ButtonRelease-1>", self._on_release)
+        for w_ in (self.top, cv):
+            w_.bind("<MouseWheel>", self._on_wheel)
+            w_.bind("<Shift-MouseWheel>", lambda e: self._on_wheel(e, horiz=True))
+            w_.bind("<Control-MouseWheel>", lambda e: self._on_wheel(e, zoom=True))
+            if IS_MAC:
+                w_.bind("<Command-MouseWheel>", lambda e: self._on_wheel(e, zoom=True))
+        for mod in (("Control",) + (("Command",) if IS_MAC else ())):
+            self.top.bind(f"<{mod}-z>", lambda e: self.undo())
+            self.top.bind(f"<{mod}-s>", lambda e: self.save())
+            self.top.bind(f"<{mod}-0>", lambda e: self.fit())
+        self.top.bind("<Escape>", lambda e: self.close())
+        self.top.protocol("WM_DELETE_WINDOW", self.close)
+
+        self._draw_tools()
+        self._update_status()
+        self.top.after(30, self.top.focus_force)
+
+    # ---------- 도구 ----------
+    def _draw_tools(self):
+        for col, c in self.sw_items:
+            c.delete("all")
+            sel = (col == self.color)
+            c.create_oval(3, 3, 19, 19, fill=col,
+                          outline=MC["primary"] if sel else "#9E9E9E",
+                          width=3 if sel else 1)
+        for wv, c in self.wd_items:
+            c.delete("all")
+            sel = (wv == self.width)
+            if sel:
+                c.create_rectangle(1, 1, 23, 21, outline=MC["primary"], width=2)
+            r = {3: 2, 6: 4, 12: 7}.get(wv, 3)
+            c.create_oval(12 - r, 11 - r, 12 + r, 11 + r, fill=MC["text"], outline="")
+        draw = (self.mode == "draw")
+        self.b_view.kind = "secondary" if draw else "primary"
+        self.b_draw.kind = "primary" if draw else "secondary"
+        self.b_view._draw()
+        self.b_draw._draw()
+        self.b_undo.set_enabled(bool(self.strokes))
+        self.b_save.set_enabled(self.dirty)
+        self.cv.configure(cursor="pencil" if draw else "fleur")
+
+    def set_mode(self, mode):
+        self.mode = mode
+        self._draw_tools()
+        self._update_status()
+
+    def set_color(self, col):
+        self.color = col
+        self.set_mode("draw")
+
+    def set_width(self, wv):
+        self.width = wv
+        self.set_mode("draw")
+
+    def _update_status(self):
+        W, H = self.img.size
+        name = os.path.basename(self.path) + (" *" if self.dirty else "")
+        hint = self.t("viewer_hint_draw" if self.mode == "draw" else "viewer_hint_view")
+        self.status.configure(text=f"{name}   {W} x {H} px   ·   {hint}")
+        self.top.title(name)
+
+    # ---------- 확대/축소 ----------
+    def _fit_scale(self):
+        cw = max(50, self.cv.winfo_width())
+        return min(1.0, cw / float(self.img.size[0]))
+
+    def fit(self):
+        self.set_zoom(self._fit_scale())
+
+    def zoom_step(self, k):
+        s = self.scale
+        if k > 0:
+            nxt = [z for z in self.ZOOMS if z > s + 1e-6]
+            self.set_zoom(nxt[0] if nxt else self.ZOOMS[-1])
+        else:
+            prv = [z for z in self.ZOOMS if z < s - 1e-6]
+            self.set_zoom(prv[-1] if prv else self.ZOOMS[0])
+
+    def set_zoom(self, s, anchor=None):
+        s = max(0.05, min(8.0, float(s)))
+        cv = self.cv
+        vw, vh = cv.winfo_width(), cv.winfo_height()
+        ax, ay = anchor if anchor else (vw / 2.0, vh / 2.0)
+        # 기준점(화면 좌표) 아래의 이미지 위치를 유지
+        ix = (cv.canvasx(ax)) / self.scale
+        iy = (cv.canvasy(ay)) / self.scale
+        self.scale = s
+        self._update_region()
+        x0r, y0r, x1r, y1r = (float(v) for v in cv.cget("scrollregion").split())
+        cv.xview_moveto(max(0.0, (ix * s - ax - x0r) / max(1.0, x1r - x0r)))
+        cv.yview_moveto(max(0.0, (iy * s - ay - y0r) / max(1.0, y1r - y0r)))
+        self.zoom_lbl.configure(text=f"{int(round(s * 100))}%")
+        self._redraw_strokes()
+        self._schedule_render()
+
+    # ---------- 보이는 부분만 그리기 ----------
+    def _yview(self, *a):
+        self.cv.yview(*a)
+        self._schedule_render()
+
+    def _xview(self, *a):
+        self.cv.xview(*a)
+        self._schedule_render()
+
+    def _update_region(self):
+        """스크롤 범위 — 이미지가 창보다 작으면 가운데에 오도록 앞쪽을 비워 둔다."""
+        W, H = self.img.size
+        sw_, sh_ = W * self.scale, H * self.scale
+        vw, vh = self.cv.winfo_width(), self.cv.winfo_height()
+        ox = max(0, (vw - sw_) / 2.0)
+        oy = max(0, (vh - sh_) / 2.0)
+        self.cv.configure(scrollregion=(-ox, -oy, max(sw_, 1) + ox, max(sh_, 1) + oy))
+
+    def _on_configure(self, _e=None):
+        if not self._fitted and self.cv.winfo_width() > 50:
+            self._fitted = True
+            self.fit()
+            return
+        self._update_region()
+        self._schedule_render()
+
+    def _schedule_render(self):
+        if self._render_job is None:
+            self._render_job = self.top.after(15, self._render)
+
+    def _render(self):
+        self._render_job = None
+        cv = self.cv
+        try:
+            vw, vh = cv.winfo_width(), cv.winfo_height()
+        except tk.TclError:
+            return
+        s = self.scale
+        W, H = self.img.size
+        x0, y0 = max(0, int(cv.canvasx(0))), max(0, int(cv.canvasy(0)))
+        x1 = min(int(W * s), x0 + vw + 1)
+        y1 = min(int(H * s), y0 + vh + 1)
+        cv.delete("img")
+        if x1 <= x0 or y1 <= y0:
+            return
+        box = (x0 / s, y0 / s, min(W, x1 / s), min(H, y1 / s))
+        part = self.img.resize((x1 - x0, y1 - y0),
+                               Image.LANCZOS if s < 1 else Image.NEAREST
+                               if s >= 2 else Image.BILINEAR, box=box)
+        self._photo = ImageTk.PhotoImage(part)
+        cv.create_image(x0, y0, image=self._photo, anchor="nw", tags="img")
+        cv.tag_lower("img")
+
+    # ---------- 스크롤 ----------
+    def _on_wheel(self, e, horiz=False, zoom=False):
+        d = e.delta if IS_MAC else e.delta / 120.0
+        if zoom:
+            self.zoom_step(1 if d > 0 else -1)
+            return "break"
+        px = int(-d * (40 if not IS_MAC else 12))
+        if horiz:
+            self.cv.xview_scroll(px, "units")
+        else:
+            self.cv.yview_scroll(px, "units")
+        self._schedule_render()
+        return "break"
+
+    # ---------- 마우스: 보기=끌어서 이동, 그리기=선 ----------
+    def _img_xy(self, e):
+        return (self.cv.canvasx(e.x) / self.scale, self.cv.canvasy(e.y) / self.scale)
+
+    def _on_press(self, e):
+        self.cv.focus_set()
+        if self.mode != "draw":
+            self.cv.scan_mark(e.x, e.y)
+            return
+        x, y = self._img_xy(e)
+        self.cur = (self.color, self.width, [(x, y)])
+        self.cur_item = self._create_stroke_item(self.cur)
+
+    def _on_drag(self, e):
+        if self.mode != "draw":
+            self.cv.scan_dragto(e.x, e.y, gain=1)
+            self._schedule_render()
+            return
+        if self.cur is None:
+            return
+        pts = self.cur[2]
+        x, y = self._img_xy(e)
+        if abs(x - pts[-1][0]) + abs(y - pts[-1][1]) < 1.0 / max(self.scale, 0.01):
+            return
+        pts.append((x, y))
+        self.cv.coords(self.cur_item, *self._stroke_coords(pts))
+
+    def _on_release(self, _e):
+        if self.mode != "draw" or self.cur is None:
+            return
+        self.add_stroke(self.cur, item=self.cur_item)
+        self.cur = None
+        self.cur_item = None
+
+    def add_stroke(self, stroke, item=None):
+        """선 하나 추가(마우스 또는 자체 점검에서 호출)."""
+        if item is None:
+            item = self._create_stroke_item(stroke)
+        self.strokes.append((stroke, item))
+        self.dirty = True
+        self._draw_tools()
+        self._update_status()
+
+    def _stroke_coords(self, pts):
+        s = self.scale
+        if len(pts) == 1:
+            pts = [pts[0], (pts[0][0] + 0.01, pts[0][1])]
+        out = []
+        for x, y in pts:
+            out += [x * s, y * s]
+        return out
+
+    def _create_stroke_item(self, stroke):
+        col, wv, pts = stroke
+        return self.cv.create_line(*self._stroke_coords(pts), fill=col,
+                                   width=max(1, wv * self.scale),
+                                   capstyle="round", joinstyle="round", tags="stroke")
+
+    def _redraw_strokes(self):
+        self.cv.delete("stroke")
+        self.strokes = [(st, self._create_stroke_item(st)) for st, _ in self.strokes]
+
+    def undo(self):
+        if not self.strokes:
+            return
+        _st, item = self.strokes.pop()
+        self.cv.delete(item)
+        self.dirty = bool(self.strokes)
+        self._draw_tools()
+        self._update_status()
+
+    # ---------- 저장 ----------
+    def rendered(self):
+        """선을 그려 넣은 이미지(PIL)."""
+        from PIL import ImageDraw
+        out = self.img.copy()
+        d = ImageDraw.Draw(out)
+        for (col, wv, pts), _item in self.strokes:
+            r = wv / 2.0
+            if len(pts) > 1:
+                d.line(pts, fill=col, width=int(round(wv)), joint="curve")
+            for x, y in (pts[0], pts[-1]):          # 둥근 끝
+                d.ellipse((x - r, y - r, x + r, y + r), fill=col)
+        return out
+
+    def _write(self, path):
+        try:
+            img = self.rendered()
+            img.save(path, "PNG")
+        except Exception:
+            messagebox.showwarning(self.t("info_title"), self.t("viewer_save_fail"),
+                                   parent=self.top)
+            return False
+        if os.path.abspath(path) == os.path.abspath(self.path):
+            self.img = img
+            self.cv.delete("stroke")
+            self.strokes = []
+            self.dirty = False
+            self._schedule_render()
+        self._draw_tools()
+        self._update_status()
+        self.status.configure(text=self.t("viewer_saved_fmt", name=os.path.basename(path)))
+        if self.on_saved:
+            try:
+                self.on_saved(path)
+            except Exception:
+                pass
+        return True
+
+    def save(self):
+        if not self.dirty:
+            return True
+        return self._write(self.path)
+
+    def save_as(self):
+        d, name = os.path.split(self.path)
+        stem, _ext = os.path.splitext(name)
+        p = filedialog.asksaveasfilename(parent=self.top, initialdir=d,
+                                         initialfile=f"{stem}_edit.png",
+                                         defaultextension=".png",
+                                         filetypes=[("PNG", "*.png")])
+        if p:
+            self._write(p)
+
+    def close(self):
+        if self.dirty:
+            r = messagebox.askyesnocancel(self.t("info_title"), self.t("viewer_unsaved"),
+                                          parent=self.top)
+            if r is None:
+                return
+            if r and not self.save():
+                return
+        if self._render_job is not None:
+            try:
+                self.top.after_cancel(self._render_job)
+            except Exception:
+                pass
+        self.top.destroy()
+        if self.on_close:
+            self.on_close(self)
+
+
+# ==================================================================
 # 메인 GUI
 # ==================================================================
 class App:
@@ -4626,7 +5100,9 @@ class App:
         for wd in (row, inner, thumb, info, l1, l2, l3):
             wd.bind("<Enter>", lambda e: set_bg(C["list_hover"]))
             wd.bind("<Leave>", lambda e: set_bg(C["white"]))
-            wd.bind("<Double-Button-1>", lambda e, p=path: open_path(p))
+            # 항목(버튼 제외) 어디를 눌러도 자체 뷰어로 열기
+            wd.bind("<Button-1>", lambda e, p=path: self.open_viewer(p))
+            wd.configure(cursor="hand2")
         return pending
 
     def _fit_name(self, label, fullname):
@@ -4657,6 +5133,32 @@ class App:
                 hi = mid - 1
         if label.cget("text") != best:
             label.config(text=best)
+
+    def open_viewer(self, path):
+        """자체 파일 뷰어(보기·선 그리기·저장). 같은 파일이 열려 있으면 그 창을 앞으로."""
+        viewers = self.__dict__.setdefault("_viewers", {})
+        v = viewers.get(path)
+        if v is not None:
+            try:
+                v.top.deiconify()
+                v.top.lift()
+                v.top.focus_force()
+                return v
+            except tk.TclError:
+                viewers.pop(path, None)
+        try:
+            v = ImageViewer(self, path, on_saved=self._viewer_saved,
+                            on_close=lambda vw, p=path: viewers.pop(p, None))
+        except Exception:
+            messagebox.showwarning(self.t("info_title"), self.t("viewer_open_fail"))
+            return None
+        viewers[path] = v
+        return v
+
+    def _viewer_saved(self, path):
+        getattr(self, "_thumb_cache", {}).pop(path, None)
+        if os.path.dirname(os.path.abspath(path)) == os.path.abspath(self.save_dir.get()):
+            self.refresh_list()
 
     def _copy_image(self, path, btn):
         ok = copy_image_to_clipboard(path)
@@ -4876,6 +5378,36 @@ def _selftest(app, out_path):
             shutil.rmtree(tmp, ignore_errors=True)
 
     check("list_prepend", _list_prepend)
+
+    def _viewer():
+        import shutil
+        import tempfile
+        tmp = tempfile.mkdtemp(prefix="sc_view_")
+        try:
+            p = os.path.join(tmp, "v.png")
+            Image.new("RGB", (400, 3000), (255, 255, 255)).save(p)
+            v = app.open_viewer(p)
+            app.root.update()
+            v.set_mode("draw")
+            v.add_stroke(("#E53935", 6, [(50, 100), (350, 100), (350, 2900)]))
+            app.root.update()
+            v.set_zoom(1.0)
+            app.root.update()
+            v.undo()
+            v.add_stroke(("#1E88E5", 6, [(20, 20), (380, 2980)]))
+            if not v.save():
+                raise RuntimeError("save failed")
+            v.close()
+            with Image.open(p) as im:
+                px = im.convert("RGB").getpixel((200, 1500))
+                red = im.convert("RGB").getpixel((200, 100))
+            if px[2] < 150 or px[0] > 120 or red != (255, 255, 255):
+                raise RuntimeError(f"pixels {px} {red}")
+            return px
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    check("viewer_draw_save", _viewer)
     check("hotkeys", lambda: {m: v[2] for m, v in app.hotkeys.items() if v})
 
     def _panel():
