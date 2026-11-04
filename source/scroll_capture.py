@@ -1677,6 +1677,13 @@ def _capture_scrolling_region(region, status_cb, opts):
         first_off = None                # 첫 place의 offset(전환 sticky 위치)
         sticky_seen = 0                 # 매 스텝 감지된 최대 sticky 높이
         left_mask = np.zeros(canvas.shape[0], bool)   # 좌측에 '실제 내용'을 쓴 행
+        # 우측 밴드(스크롤바로 본 자리)에서 '페이지와 함께 움직인' 행 수 / 확인한 행 수.
+        # 많으면 스크롤바가 아니라 실제 내용(예: 카카오톡 말풍선 오른쪽 끝) → 지우지 않음
+        right_stat = [0, 0]
+        # 우측 밴드 열별 '함께 움직인 픽셀' 수 — 내용 열과 스크롤바 썸 열을 가르는 데 사용
+        right_col_ev = np.zeros(right_band, np.int64)
+        right_col_nm = np.zeros(right_band, np.int64)   # 바뀌었는데 '함께 움직이지 않은' 픽셀
+        right_steps = [0]
         cap_fmt = S.get("status_capturing_fmt", "캡처 중... (높이 {h}px)")
 
         # 진행률(%) — 스크롤바 썸 위치로 계산. 없으면 단계 기반으로 완만히 상승.
@@ -1761,6 +1768,27 @@ def _capture_scrolling_region(region, status_cb, opts):
             canvas[offset + st:offset + h, cl:cr] = frame[st:h, cl:cr]
             pf = last_place.get("frame")
             last_place.update(off=offset, st=st, bak=bak, frame=frame)
+            if right_band:
+                rb = w - right_band
+                if pf is not None and 0 < d < h:
+                    r16 = frame[st:h, rb:].astype(np.int16)
+                    q16 = pf[:h, rb:].astype(np.int16)
+                    rows = np.arange(st, h)
+                    inb = rows + d < h
+                    if inb.any():
+                        ri = r16[inb]
+                        mv = np.mean(np.abs(ri - q16[rows[inb] + d]), axis=(1, 2)) <= 6
+                        sm = np.mean(np.abs(ri - q16[rows[inb]]), axis=(1, 2)) <= 6
+                        # 가로로 한 색인 행(스크롤바 썸이 비켜난 트랙 등)은 근거에서 제외
+                        nu = (ri.max(axis=1) - ri.min(axis=1)).max(axis=1) > 30
+                        right_stat[0] += int((mv & ~sm & nu).sum())
+                        right_stat[1] += int(inb.sum())
+                        pmv = np.abs(ri - q16[rows[inb] + d]).max(axis=2) <= 12
+                        pch = np.abs(ri - q16[rows[inb]]).max(axis=2) > 24
+                        right_col_ev += (pmv & pch).sum(axis=0)
+                        right_col_nm += (~pmv & pch).sum(axis=0)
+                        right_steps[0] += 1
+                canvas[offset + st:offset + h, rb:] = frame[st:h, rb:]
             if left_band and first_left is not None:
                 seg = frame[st:h, :left_band]
                 s16 = seg.astype(np.int16)
@@ -2047,6 +2075,20 @@ def _capture_scrolling_region(region, status_cb, opts):
 
     # 좌측: place가 '실제 내용'을 쓴 행(left_mask)은 그대로 두고, 나머지(=사이드바)만 배경색.
     # 우측(스크롤바 자리)은 배경색으로 채우고 마지막 컷 footer만 실제 내용 복원.
+    right_content = right_stat[1] > 0 and right_stat[0] >= right_stat[1] * 0.03
+    sb_cols = right_band          # 배경색으로 지울 오른쪽 열 수(스크롤바 자리)
+    if right_content:
+        # 내용이 닿는 밴드라도 맨 오른쪽의 스크롤바 썸 열은 지운다.
+        # 썸은 페이지와 따로(조금씩) 움직여 '바뀌었는데 함께 움직이지 않은' 픽셀이 생기고,
+        # 내용 열은 거의 없다 → 오른쪽 끝 24px 안에서 그런 열부터 끝까지 지움
+        sbl = ((right_col_nm > right_col_ev * 0.3)
+               & (right_col_nm >= max(1, right_steps[0]) * 2))
+        tail = min(right_band, 24)
+        idx = np.where(sbl[right_band - tail:])[0]
+        sb_cols = int(tail - idx.min()) if idx.size else 0
+    if right_band > 0:
+        _dbg(f"right band {right_band}: moved rows {right_stat[0]}/{right_stat[1]} "
+             f"-> {'content' if right_content else 'scrollbar'}, clear {sb_cols} cols")
     if canvas.shape[0] > h:
         # 첫 컷 맨 아래의 창 모서리(macOS 둥근 모서리)·가장자리도 좌/우 밴드에 남지 않게
         # 첫 컷 아래쪽 몇 줄부터 채운다
@@ -2058,7 +2100,9 @@ def _capture_scrolling_region(region, status_cb, opts):
         if left_band > 0 and left_bg is not None:
             reg = canvas[f0:, :left_band]
             reg[~left_mask[f0:]] = left_bg
-        if right_band > 0:
+        if right_content and sb_cols > 0:
+            canvas[f0:, w - sb_cols:] = content_bg
+        if right_band > 0 and not right_content:
             canvas[f0:, w - right_band:] = content_bg
             if first_right is not None:
                 cs = prev[:h, w - right_band:]
@@ -2078,8 +2122,8 @@ def _capture_scrolling_region(region, status_cb, opts):
         if footer_live:   # 스크롤되는 내용이면 좌/우 밴드(사이드바·스크롤바)는 본문과 같이 정리
             if left_band > 0 and left_bg is not None:
                 footer_img[:, :left_band] = left_bg
-            if right_band > 0:
-                footer_img[:, w - right_band:] = content_bg
+            if sb_cols > 0:
+                footer_img[:, w - sb_cols:] = content_bg
         canvas = np.vstack([canvas, footer_img])
     return canvas
 

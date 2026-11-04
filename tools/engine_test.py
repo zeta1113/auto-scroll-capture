@@ -5,6 +5,7 @@
   python tools/engine_test.py [결과PNG경로] [옵션]
 
   --sticky        : 테스트 창에 중간부터 상단에 붙는 고정(sticky) 바 표시(GitHub 처럼)
+  --right-edge    : 4줄마다 오른쪽 끝까지 닿는 파란 띠(카카오톡 말풍선처럼) — 결과 오른쪽 끝에 남는지 검사
   --chrome        : Tk 창 대신 실제 Chrome 으로 테스트 페이지(고정 바 포함)를 열어 캡처
   --url URL       : 실제 웹페이지를 Chrome 으로 열어 '창 전체'(윈도우 스크롤처럼) 캡처
                     (줄 표식 검사 없이 결과 이미지·통계만 — 눈으로 비교용)
@@ -36,7 +37,7 @@ def _bits(i):
 # ------------------------------------------------------------------
 # 테스트 대상 1: Tk 창
 # ------------------------------------------------------------------
-def run_target(sticky):
+def run_target(sticky, right_edge=False):
     if sys.platform == "win32":
         import ctypes
         try:
@@ -55,22 +56,32 @@ def run_target(sticky):
     cell_px = n_sp * cw_char
     txt = tk.Text(root, font=font, wrap="none", bd=0, highlightthickness=0,
                   padx=0, pady=0, spacing1=3, spacing3=3)
+    sb = None
+    if right_edge:      # 카카오톡처럼 영역 안 오른쪽 끝에 스크롤바
+        sb = tk.Scrollbar(root, orient="vertical", command=txt.yview)
+        sb.pack(side="right", fill="y")
     txt.pack(fill="both", expand=True)
     txt.tag_configure("r", background="#ff0000")
     txt.tag_configure("k", background="#000000")
     txt.tag_configure("w", background="#ffffff")
+    txt.tag_configure("b", background="#1e64ff")
     sp = " " * n_sp
     for i in range(1, N_LINES + 1):
         txt.insert("end", sp, "r")
         for b in _bits(i):
             txt.insert("end", sp, "k" if b else "w")
-        txt.insert("end", f"  {i:04d} " + ("abcdefghij" * (i % 5 + 1)) + "\n")
+        txt.insert("end", f"  {i:04d} " + ("abcdefghij" * (i % 5 + 1)))
+        if right_edge and i % 4 == 0:      # 창 오른쪽 끝을 넘어가는 띠
+            txt.insert("end", " " * 200, "b")
+        txt.insert("end", "\n")
     txt.config(state="disabled")
 
     bar = tk.Label(root, text="STICKY BAR", bg="#ff8c00", fg="black",
                    font=("Arial", 14, "bold"), anchor="w")
 
     def on_scroll(first, last):
+        if sb is not None:
+            sb.set(first, last)
         if sticky and float(first) > BAR_AFTER / float(N_LINES):
             bar.place(x=0, y=0, relwidth=1, height=34)
         else:
@@ -80,8 +91,9 @@ def run_target(sticky):
 
     def report():
         root.update_idletasks()
+        sbw = sb.winfo_width() if sb is not None else 0
         print("READY", txt.winfo_rootx(), txt.winfo_rooty(),
-              txt.winfo_width(), txt.winfo_height(), cell_px, flush=True)
+              txt.winfo_width() + sbw, txt.winfo_height(), cell_px, sbw, flush=True)
 
     root.after(800, report)
     root.after(180000, root.destroy)
@@ -346,6 +358,13 @@ def main():
     stop_after, cancel_after = _arg("--stop-after"), _arg("--cancel-after")
     sticky = "--sticky" in sys.argv
     use_chrome = "--chrome" in sys.argv
+    right_edge = "--right-edge" in sys.argv
+    if not os.environ.get("SC_LOG"):          # 캡처 기록(고정 영역 판단 등)을 결과와 함께 출력
+        os.environ["SC_LOG"] = os.path.splitext(out)[0] + "_log.txt"
+        try:
+            os.remove(os.environ["SC_LOG"])
+        except OSError:
+            pass
 
     p = None
     try:
@@ -365,6 +384,8 @@ def main():
             cmd = [sys.executable, os.path.abspath(__file__), "--target"]
             if sticky:
                 cmd.append("--sticky")
+            if right_edge:
+                cmd.append("--right-edge")
             p = subprocess.Popen(cmd, stdout=subprocess.PIPE, text=True)
             line = ""
             t0 = time.time()
@@ -375,7 +396,8 @@ def main():
             if not line.startswith("READY"):
                 print("FAIL: target window did not start")
                 return 1
-            _, x, y, w, h, cell = line.split()
+            _, x, y, w, h, cell, sbw = line.split()
+            sbw = int(sbw)
             x, y, w, h, cell = int(x), int(y), int(w), int(h), float(cell)
             region = (x + 4, y + 4, w - 8, h - 8)
         print("target region:", region, flush=True)
@@ -463,7 +485,44 @@ def main():
             print(f"stopped={ctl.stopped}")
             print("PASS" if ok else "FAIL: stop did not cut the capture")
             return 0 if ok else 1
+        try:
+            with open(os.environ["SC_LOG"], encoding="utf-8") as f:
+                for ln in f:
+                    if " bands " in ln or "right band" in ln:
+                        print("log:", ln.split(" ", 1)[1].strip(), flush=True)
+        except OSError:
+            pass
         problems, seq, bar_rows = check_lines(img, cell * scale)
+        import numpy as np
+        if right_edge:
+            # 파란 띠가 스크롤바 바로 왼쪽(내용 끝 8px)까지 남아 있는 행 비율(기대: 약 1/4)
+            sbi = int(round(max(0, sbw - 4) * scale))       # 결과 안 스크롤바 폭
+            x1 = img.shape[1] - sbi
+            bb, gg, rr = (img[:, x1 - int(10 * scale):x1 - int(2 * scale), k].astype(int)
+                          for k in range(3))
+            blue = (bb > 200) & (rr < 90) & (gg > 60) & (gg < 150)
+            frac = float((blue.mean(axis=1) > 0.5).mean())
+            print(f"right edge blue rows: {frac:.3f} (scrollbar {sbi}px)", flush=True)
+            if frac < 0.15:
+                problems.append(f"right edge content lost (blue rows {frac:.3f})")
+            if sbi > 2:
+                # 스크롤바 썸이 결과에 반복해 찍히지 않았는지(첫 화면 1회는 허용)
+                e = img[:, x1 + 1:x1 + sbi - 1].astype(int)
+                ref = np.median(e[-int(region[3] * scale) // 2:].reshape(-1, 3), axis=0)
+                diff = np.abs(e - ref).max(axis=2).mean(axis=1) > 25
+                d_rows = int(diff[int(region[3] * scale):].sum())
+                print(f"scrollbar thumb rows below first screen: {d_rows}", flush=True)
+                if d_rows > 60 * scale:
+                    problems.append(f"scrollbar thumb repeated ({d_rows} rows)")
+        if use_chrome:
+            # 스크롤바 썸(회색)이 결과 오른쪽 끝에 반복해 찍히지 않았는지
+            e = img[:, -14:].astype(int)
+            gray = ((np.abs(e[:, :, 0] - e[:, :, 1]) < 10) & (np.abs(e[:, :, 1] - e[:, :, 2]) < 10)
+                    & (e[:, :, 1] > 90) & (e[:, :, 1] < 215))
+            g_rows = int((gray.mean(axis=1) > 0.3).sum())
+            print(f"scrollbar-like rows at right edge: {g_rows}", flush=True)
+            if g_rows > 400 * scale:
+                problems.append(f"scrollbar repeated at right edge ({g_rows} rows)")
         print(f"lines: {len(seq)} found ({seq[:1]}..{seq[-1:]}), "
               f"sticky bar rows in result={bar_rows}", flush=True)
         if bar_rows > 40 * scale:
@@ -483,6 +542,6 @@ def main():
 
 if __name__ == "__main__":
     if "--target" in sys.argv:
-        run_target("--sticky" in sys.argv)
+        run_target("--sticky" in sys.argv, "--right-edge" in sys.argv)
     else:
         sys.exit(main())
