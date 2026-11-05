@@ -1219,6 +1219,11 @@ def probe_methods(sct, region, hwnd, cx, cy, notches, wait):
         METHODS.insert(0, m)
         if m not in POINTER_MOVING:              # 포인터를 옮기는 방식은 이번엔 사용 안 함
             METHODS[:] = [x for x in METHODS if x not in POINTER_MOVING]
+        if not IS_MAC and m != "key" and moved_px:
+            # 메시지 휠로 실제 스크롤되면 방향키는 쓰지 않는다. 끝에서 방향키를 보내면
+            # 앱에 따라 스크롤 대신 다른 동작을 함 — 예: 카카오톡은 메시지를 선택(회색 표시)해
+            # 화면이 바뀐 것을 '스크롤됨'으로 오인, 고정 영역 측정·위치 복원이 어긋남
+            METHODS[:] = [x for x in METHODS if x != "key"]
         return m, moved_px
     return None, None
 
@@ -1271,6 +1276,39 @@ def _flat_rows(frames, tol=24, frac=0.03):
         fl = uni | edge
         out = fl if out is None else (out & fl)
     return out
+
+
+def _static_top_rows(frames, limit):
+    """실제로 스크롤된 모든 프레임쌍에서 '완전히 같은' 맨 위 줄 수(limit 미만일 때만, 아니면 0)."""
+    pairs = [(a, b) for a, b in zip(frames, frames[1:]) if not images_equal(a, b)]
+    if not pairs:
+        return 0
+    n = min(limit, frames[0].shape[0])
+    same = np.ones(n, bool)
+    for a, b in pairs:
+        d = np.abs(a[:n].astype(np.int16) - b[:n].astype(np.int16)).max(axis=2)
+        same &= (d > 24).mean(axis=1) < 0.01
+    t = 0
+    while t < n and same[t]:
+        t += 1
+    return t if t < limit else 0
+
+
+def _rows_differ(a, b, tol=40, frac=0.01):
+    """두 이미지(같은 크기)에서 눈에 띄게 다른 행 — (H,) 불리언."""
+    d = np.abs(a.astype(np.int16) - b.astype(np.int16)).max(axis=2)
+    return (d > tol).mean(axis=1) > frac
+
+
+def _fill_right_cols(img, ncols, ref=12):
+    """img(뷰)의 오른쪽 ncols 열을 행마다 '바로 왼쪽 ref 열의 중간 색'으로 채운다.
+    한 가지 배경색으로 채우면 말풍선 등 내용 색이 많은 화면에서 엉뚱한 색 블록이 생김."""
+    w = img.shape[1]
+    if ncols <= 0 or ncols >= w or img.shape[0] == 0:
+        return
+    a = max(0, w - ncols - ref)
+    col = np.median(img[:, a:w - ncols], axis=1).astype(img.dtype)
+    img[:, w - ncols:] = col[:, None, :]
 
 
 def _content_span(changed, win=32, frac=0.4, frames=None):
@@ -1347,6 +1385,30 @@ def measure_fixed_regions(sct, region, hwnd, cx, cy, notches, wait, park=None,
                 break
         frames.append(got if got is not None else grab(sct, region))
 
+    # 이미 맨 끝(아래로 안 움직임) → 위로 스크롤하며 측정(고정 영역은 방향과 무관)한 뒤
+    # 다시 아래로 원위치. 안 그러면 헤더·입력창 등을 모른 채 이어 붙여 화면마다 반복됨
+    ups = 0
+    if downs == 0:
+        for _ in range(3):
+            _check_abort()
+            got = None
+            for m in METHODS:
+                apply_scroll(hwnd, cx, cy, m, down=False, notches=notches, park=park)
+                time.sleep(wait)
+                f = grab_settled(sct, region)
+                if not images_equal(frames[-1], f):
+                    got = f
+                    ups += 1
+                    break
+            frames.append(got if got is not None else grab(sct, region))
+        for _ in range(ups):
+            before = grab(sct, region)
+            for m in METHODS:
+                apply_scroll(hwnd, cx, cy, m, down=True, notches=notches, park=park)
+                time.sleep(wait * 0.7)
+                if not images_equal(before, grab(sct, region)):
+                    break
+
     # 원래 위치로 복원
     for _ in range(downs if restore else 0):
         before = grab(sct, region)
@@ -1411,7 +1473,12 @@ def measure_fixed_regions(sct, region, hwnd, cx, cy, notches, wait, park=None,
     else:
         top = bot = 0
     # 경계를 콘텐츠 쪽으로 살짝(6px) 밀어 고정영역 누출(반복)을 확실히 차단
-    top = 0 if top < 16 else min(top + 6, H // 2)
+    if top < 16:
+        # 얇은 고정 줄(예: 카카오톡 대화 영역 맨 위 1px 구분선)은 '모든 프레임에서 똑같은'
+        # 맨 위 줄만 헤더로 둔다 — 안 그러면 매 스텝 이음매마다 그 줄이 찍혀 가로 줄무늬가 생김
+        top = _static_top_rows(frames, 16)
+    else:
+        top = min(top + 6, H // 2)
     bot = 0 if bot < 16 else min(bot + 6, H // 2)
     left = pick(lefts, int(W * 0.45), 6)
     right = pick(rights, int(W * 0.45), 6)
@@ -1433,7 +1500,7 @@ def measure_fixed_regions(sct, region, hwnd, cx, cy, notches, wait, park=None,
 
     return {"top": top, "bot": bot, "left": left, "right": right,
             "left_bg": left_bg, "right_bg": right_bg, "sticky": sticky,
-            "moved": moved, "downs": downs}
+            "moved": moved, "downs": downs, "ups": ups}
 
 
 def _scroll_down_n(sct, region, hwnd, cx, cy, notches, wait, park, n):
@@ -1613,6 +1680,7 @@ def _capture_scrolling_region(region, status_cb, opts):
     header_img = None
     footer_img = None
     footer_live = False
+    footer_rows = None      # 마지막 화면 하단 중 첫 화면과 달랐던 행(=스크롤되는 내용)
 
     with screen_grabber() as sct:
         # 화면 좌표(region, 포인트) ↔ 이미지 픽셀 배율. Windows=1, macOS Retina=2.
@@ -1659,7 +1727,8 @@ def _capture_scrolling_region(region, status_cb, opts):
         top_band, bot_band = reg["top"], reg["bot"]
         left_band, right_band = reg["left"], reg["right"]
         _dbg(f"bands top={top_band} bot={bot_band} left={left_band} "
-             f"right={right_band} downs={reg.get('downs')} replay={replay_mode}")
+             f"right={right_band} downs={reg.get('downs')} ups={reg.get('ups')} "
+             f"replay={replay_mode}")
         replay = reg["moved"] if replay_mode else None
         if auto_top and not replay_mode:
             pref = scroll_to_top(sct, region, hwnd, cx, cy, top_notches, wait, park=park)
@@ -1700,6 +1769,16 @@ def _capture_scrolling_region(region, status_cb, opts):
 
         def inner(f):   # 측정 프레임(전체 영역) → 고정 상/하단을 뺀 본 캡처 영역
             return np.ascontiguousarray(f[top_band:H_full - bot_band])
+
+        # 헤더는 '실제로 캡처를 시작하는 화면'에서 다시 잡는다. 헤더 띠 아래쪽 여유분(6px)에는
+        # 내용이 걸치는데, 측정 뒤 맨 위로 이동(sticky 감지 등)하면 처음 위치의 내용 조각이 남음
+        if header_img is not None and not replay:
+            try:
+                hf = grab(sct, (xs, ys, ws, hs))
+                if hf.shape[0] == H_full and hf.shape[1] == header_img.shape[1]:
+                    header_img = hf[0:top_band].copy()
+            except Exception as e:
+                _dbg(f"header regrab failed: {e}")
 
         canvas = inner(replay[0]) if replay else grab_settled(sct, region)
         # 좌/우 밴드가 흰 여백까지 물어 콘텐츠를 자르지 않도록 실제 내용 경계까지 축소
@@ -2088,9 +2167,12 @@ def _capture_scrolling_region(region, status_cb, opts):
             try:
                 live = grab(sct, (xs, ys, ws, hs))
                 foot = live[H_full - bot_band:H_full]
-                if foot.shape == footer_img.shape and not images_equal(foot, footer_img):
+                # 평균 차이가 아니라 '행 단위'로 비교 — 하단 띠 위쪽 몇 줄(대화 내용 여유분)만
+                # 달라도 첫 화면 하단을 붙이면 엉뚱한 내용 조각이 맨 끝에 남음
+                if foot.shape == footer_img.shape and _rows_differ(foot, footer_img).any():
                     inner_now = np.ascontiguousarray(live[top_band:H_full - bot_band])
                     if images_equal(inner_now, prev):
+                        footer_rows = _rows_differ(foot, footer_img)
                         footer_img = foot.copy()
                         footer_live = True
                     else:
@@ -2152,9 +2234,9 @@ def _capture_scrolling_region(region, status_cb, opts):
         if sb_cols > 0 and frame0.shape[1] == canvas.shape[1]:
             canvas[:f0, w - sb_cols:] = frame0[:f0, w - sb_cols:]
         if right_content and sb_cols > 0:
-            canvas[f0:, w - sb_cols:] = content_bg
+            _fill_right_cols(canvas[f0:], sb_cols)
         if right_band > 0 and not right_content:
-            canvas[f0:, w - right_band:] = content_bg
+            _fill_right_cols(canvas[f0:], right_band)
             if first_right is not None:
                 cs = prev[:h, w - right_band:]
                 d = np.mean(np.abs(cs.astype(np.int16) - first_right.astype(np.int16)),
@@ -2171,10 +2253,15 @@ def _capture_scrolling_region(region, status_cb, opts):
         canvas = np.vstack([header_img, canvas])
     if footer_img is not None and footer_img.shape[1] == canvas.shape[1]:
         if footer_live:   # 스크롤되는 내용이면 좌/우 밴드(사이드바·스크롤바)는 본문과 같이 정리
+            # 단, 첫 화면과 같은 행(입력창 등 진짜 고정 부분)은 그대로 둔다
+            rows = (footer_rows if footer_rows is not None
+                    else np.ones(footer_img.shape[0], bool))
             if left_band > 0 and left_bg is not None:
-                footer_img[:, :left_band] = left_bg
-            if sb_cols > 0:
-                footer_img[:, w - sb_cols:] = content_bg
+                footer_img[rows, :left_band] = left_bg
+            if sb_cols > 0 and rows.any():
+                live_rows = footer_img[rows]
+                _fill_right_cols(live_rows, sb_cols)
+                footer_img[rows] = live_rows
         canvas = np.vstack([canvas, footer_img])
     return canvas
 

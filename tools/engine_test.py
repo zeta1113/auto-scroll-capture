@@ -57,9 +57,13 @@ def run_target(sticky, right_edge=False):
     txt = tk.Text(root, font=font, wrap="none", bd=0, highlightthickness=0,
                   padx=0, pady=0, spacing1=3, spacing3=3)
     sb = None
+    topline = None
     if right_edge:      # 카카오톡처럼 영역 안 오른쪽 끝에 스크롤바
         sb = tk.Scrollbar(root, orient="vertical", command=txt.yview)
         sb.pack(side="right", fill="y")
+        # 카카오톡 대화 영역 맨 위의 얇은 구분선(고정) — 영역 맨 위에 포함
+        topline = tk.Frame(root, height=2, bg="#00b050")
+        topline.pack(side="top", fill="x")
     txt.pack(fill="both", expand=True)
     txt.tag_configure("r", background="#ff0000")
     txt.tag_configure("k", background="#000000")
@@ -94,8 +98,11 @@ def run_target(sticky, right_edge=False):
     def report():
         root.update_idletasks()
         sbw = sb.winfo_width() if sb is not None else 0
-        print("READY", txt.winfo_rootx(), txt.winfo_rooty(),
-              txt.winfo_width() + sbw, txt.winfo_height(), cell_px, sbw, flush=True)
+        y, hh = txt.winfo_rooty(), txt.winfo_height()
+        if topline is not None:     # 영역(y+4 부터)이 구분선에서 시작하도록
+            y, hh = topline.winfo_rooty() - 4, hh + topline.winfo_height() + 4
+        print("READY", txt.winfo_rootx(), y,
+              txt.winfo_width() + sbw, hh, cell_px, sbw, flush=True)
 
     root.after(800, report)
     root.after(180000, root.destroy)
@@ -511,6 +518,13 @@ def main():
                   f"scrollbar {sbi}px)", flush=True)
             if f0 < 0.05 or frac < f0 * 0.7:
                 problems.append(f"right edge content lost (blue rows {frac:.3f} vs {f0:.3f})")
+            # 영역 맨 위 얇은 구분선(초록)이 이음매마다 반복돼 가로 줄무늬가 되지 않았는지
+            gi = img[:, :x1].astype(int)
+            green = (gi[:, :, 1] > 140) & (gi[:, :, 2] < 60) & (gi[:, :, 0] < 120)
+            g_rows = int((green.mean(axis=1) > 0.5).sum())
+            print(f"top line rows: {g_rows}", flush=True)
+            if g_rows > 6 * scale:
+                problems.append(f"top line repeated as stripes ({g_rows} rows)")
             if sbi > 2:
                 # 스크롤바 썸이 결과에 반복해 찍히지 않았는지(첫 화면 1회는 허용)
                 e = img[:, x1 + 1:x1 + sbi - 1].astype(int)

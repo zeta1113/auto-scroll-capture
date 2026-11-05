@@ -104,7 +104,7 @@ jobs:
           echo "::notice title=engine-chrome ${{ matrix.arch }}::$(grep -E 'pointer:|result:|lines:|log:|scrollbar-like|PASS|FAIL|SKIP|Error' engine_chrome_${{ matrix.arch }}.txt | tr '\n' ' ')"
           # 오른쪽 끝까지 닿는 내용(카카오톡 말풍선처럼)이 스크롤바로 오인돼 지워지지 않는지
           python tools/engine_test.py "engine_redge_${{ matrix.arch }}.png" --right-edge 2>&1 | tee engine_redge_${{ matrix.arch }}.txt
-          echo "::notice title=engine-redge ${{ matrix.arch }}::$(grep -E 'result:|lines:|log:|right edge|thumb rows|PASS|FAIL|Error' engine_redge_${{ matrix.arch }}.txt | tr '\n' ' ')"
+          echo "::notice title=engine-redge ${{ matrix.arch }}::$(grep -E 'result:|lines:|log:|right edge|thumb rows|top line|PASS|FAIL|Error' engine_redge_${{ matrix.arch }}.txt | tr '\n' ' ')"
 
       - name: Real page capture
         continue-on-error: true
@@ -194,7 +194,7 @@ jobs:
           for m in "" "--sticky" "--chrome" "--right-edge"; do
             n="win${m//-/_}"
             python tools/engine_test.py "engine_${n}.png" $m 2>&1 | tee "engine_${n}.txt"
-            echo "::notice title=engine ${n}::$(grep -E 'pointer:|result:|lines:|log:|right edge|thumb rows|scrollbar-like|PASS|FAIL|SKIP|Error' "engine_${n}.txt" | tr '\n' ' ')"
+            echo "::notice title=engine ${n}::$(grep -E 'pointer:|result:|lines:|log:|right edge|thumb rows|top line|scrollbar-like|PASS|FAIL|SKIP|Error' "engine_${n}.txt" | tr '\n' ' ')"
           done
       - name: Real page capture (new vs v1.4.19)
         continue-on-error: true
