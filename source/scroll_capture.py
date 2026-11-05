@@ -1300,15 +1300,22 @@ def _rows_differ(a, b, tol=40, frac=0.01):
     return (d > tol).mean(axis=1) > frac
 
 
-def _fill_right_cols(img, ncols, ref=12):
-    """img(뷰)의 오른쪽 ncols 열을 행마다 '바로 왼쪽 ref 열의 중간 색'으로 채운다.
-    한 가지 배경색으로 채우면 말풍선 등 내용 색이 많은 화면에서 엉뚱한 색 블록이 생김."""
+def _fill_right_cols(img, ncols, bg, ref=12):
+    """img(뷰)의 오른쪽 ncols 열을 채운다. 바로 왼쪽 ref 열이 '고른 한 가지 색'인 행은 그 색으로
+    이어 칠하고(말풍선·띠가 끝까지 이어짐), 글자 등이 섞인 행은 배경색 bg 로 칠한다.
+    (모두 한 가지 배경색이면 말풍선이 많은 화면에서 엉뚱한 색 블록이 생기고,
+     모두 왼쪽 색을 따르면 글자 줄마다 짧은 가로선이 생김)"""
     w = img.shape[1]
     if ncols <= 0 or ncols >= w or img.shape[0] == 0:
         return
     a = max(0, w - ncols - ref)
-    col = np.median(img[:, a:w - ncols], axis=1).astype(img.dtype)
-    img[:, w - ncols:] = col[:, None, :]
+    blk = img[:, a:w - ncols].astype(np.int16)
+    col = np.median(blk, axis=1)
+    uni = (np.abs(blk - col[:, None, :]).max(axis=2) > 24).mean(axis=1) < 0.05
+    out = np.empty((img.shape[0], 3), img.dtype)
+    out[:] = bg
+    out[uni] = col[uni].astype(img.dtype)
+    img[:, w - ncols:] = out[:, None, :]
 
 
 def _content_span(changed, win=32, frac=0.4, frames=None):
@@ -2234,9 +2241,9 @@ def _capture_scrolling_region(region, status_cb, opts):
         if sb_cols > 0 and frame0.shape[1] == canvas.shape[1]:
             canvas[:f0, w - sb_cols:] = frame0[:f0, w - sb_cols:]
         if right_content and sb_cols > 0:
-            _fill_right_cols(canvas[f0:], sb_cols)
+            _fill_right_cols(canvas[f0:], sb_cols, content_bg)
         if right_band > 0 and not right_content:
-            _fill_right_cols(canvas[f0:], right_band)
+            _fill_right_cols(canvas[f0:], right_band, content_bg)
             if first_right is not None:
                 cs = prev[:h, w - right_band:]
                 d = np.mean(np.abs(cs.astype(np.int16) - first_right.astype(np.int16)),
@@ -2260,7 +2267,7 @@ def _capture_scrolling_region(region, status_cb, opts):
                 footer_img[rows, :left_band] = left_bg
             if sb_cols > 0 and rows.any():
                 live_rows = footer_img[rows]
-                _fill_right_cols(live_rows, sb_cols)
+                _fill_right_cols(live_rows, sb_cols, content_bg)
                 footer_img[rows] = live_rows
         canvas = np.vstack([canvas, footer_img])
     return canvas

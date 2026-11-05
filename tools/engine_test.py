@@ -527,9 +527,13 @@ def main():
                 problems.append(f"top line repeated as stripes ({g_rows} rows)")
             if sbi > 2:
                 # 스크롤바 썸이 결과에 반복해 찍히지 않았는지(첫 화면 1회는 허용)
-                e = img[:, x1 + 1:x1 + sbi - 1].astype(int)
-                ref = np.median(e[-int(region[3] * scale) // 2:].reshape(-1, 3), axis=0)
-                diff = np.abs(e - ref).max(axis=2).mean(axis=1) > 25
+                # 썸 = 스크롤바 자리 색이 바로 왼쪽 내용과 다른 회색 행
+                # (지운 자리는 행마다 바로 왼쪽 색으로 채우므로 내용과 이어짐)
+                e = np.median(img[:, x1 + 1:x1 + sbi - 1].astype(int), axis=1)
+                lft = np.median(img[:, x1 - int(6 * scale):x1 - int(2 * scale)].astype(int), axis=1)
+                grayish = ((np.abs(e[:, 0] - e[:, 1]) < 12) & (np.abs(e[:, 1] - e[:, 2]) < 12)
+                           & (e[:, 1] > 80) & (e[:, 1] < 225))
+                diff = (np.abs(e - lft).max(axis=1) > 25) & grayish
                 d_rows = int(diff[int(region[3] * scale):].sum())
                 print(f"scrollbar thumb rows below first screen: {d_rows}", flush=True)
                 if d_rows > 60 * scale:
