@@ -1,0 +1,4 @@
+target region: (0, 25, 1200, 926)
+pointer: moved max 647px during capture (6437 samples)
+result: 1200x19264  scale=1.00  height ratio=20.8  time=163s  methods={'hid': 5, 'wheel': 1, 'key': 113}  -> page_new_x86_64.png
+DONE

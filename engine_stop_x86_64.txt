@@ -1,0 +1,5 @@
+target region: (124, 172, 552, 452)
+pointer: moved max 537px during capture (449 samples)
+result: 552x1412  scale=1.00  height ratio=3.1  time=12s  methods={'send': 8}  -> engine_stop_x86_64.png
+stopped=True
+PASS
