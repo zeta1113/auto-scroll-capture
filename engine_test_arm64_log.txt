@@ -1,0 +1,51 @@
+1793868562.14 version=1.5.15 sticky=False speed=1.0 auto_top=True
+1793868563.08 start region=(124, 172, 552, 452) img=552x452 sc=1 hwnd=None methods=['send', 'key', 'hid', 'wheel'] notches=2 wait=0.35
+1793868565.32 probe -> send moved=240 methods=['send', 'key']
+1793868565.32 adapt per_notch=120px -> notches=1 top=2
+1793868571.38 bands top=0 bot=0 left=56 right=24 downs=3 ups=0 replay=True
+1793868572.14 a m=send st=0 delta=120 score=1.000 off=360
+1793868572.99 a m=send st=0 delta=120 score=1.000 off=480
+1793868573.87 a m=send st=0 delta=120 score=1.000 off=600
+1793868574.66 a m=send st=0 delta=120 score=1.000 off=720
+1793868575.47 a m=send st=0 delta=120 score=1.000 off=840
+1793868576.33 a m=send st=0 delta=120 score=1.000 off=960
+1793868577.17 a m=send st=0 delta=120 score=1.000 off=1080
+1793868578.00 a m=send st=0 delta=120 score=1.000 off=1200
+1793868578.77 a m=send st=0 delta=120 score=1.000 off=1320
+1793868579.59 a m=send st=0 delta=120 score=1.000 off=1440
+1793868580.42 a m=send st=0 delta=120 score=1.000 off=1560
+1793868581.20 a m=send st=0 delta=120 score=1.000 off=1680
+1793868582.04 a m=send st=0 delta=120 score=1.000 off=1800
+1793868582.75 a m=send st=0 delta=120 score=1.000 off=1920
+1793868583.55 a m=send st=0 delta=120 score=1.000 off=2040
+1793868584.26 a m=send st=0 delta=120 score=1.000 off=2160
+1793868585.09 a m=send st=0 delta=120 score=1.000 off=2280
+1793868585.81 a m=send st=0 delta=120 score=1.000 off=2400
+1793868586.59 a m=send st=0 delta=120 score=1.000 off=2520
+1793868587.42 a m=send st=0 delta=120 score=1.000 off=2640
+1793868588.16 a m=send st=0 delta=120 score=1.000 off=2760
+1793868588.89 a m=send st=0 delta=120 score=1.000 off=2880
+1793868589.52 a m=send st=0 delta=120 score=1.000 off=3000
+1793868590.38 a m=send st=0 delta=120 score=1.000 off=3120
+1793868591.26 a m=send st=0 delta=120 score=1.000 off=3240
+1793868592.15 a m=send st=0 delta=120 score=1.000 off=3360
+1793868592.89 a m=send st=0 delta=120 score=1.000 off=3480
+1793868593.73 a m=send st=0 delta=120 score=1.000 off=3600
+1793868594.50 a m=send st=0 delta=120 score=1.000 off=3720
+1793868595.26 a m=send st=0 delta=120 score=1.000 off=3840
+1793868596.15 a m=send st=0 delta=120 score=1.000 off=3960
+1793868596.91 a m=send st=0 delta=120 score=1.000 off=4080
+1793868597.67 a m=send st=0 delta=120 score=1.000 off=4200
+1793868598.54 a m=send st=0 delta=120 score=1.000 off=4320
+1793868599.18 a m=send st=0 delta=120 score=1.000 off=4440
+1793868600.08 a m=send st=0 delta=120 score=1.000 off=4560
+1793868600.93 a m=send st=0 delta=120 score=1.000 off=4680
+1793868601.72 a m=send st=0 delta=120 score=1.000 off=4800
+1793868602.56 a m=send st=0 delta=120 score=1.000 off=4920
+1793868603.26 a m=send st=0 delta=43 score=1.000 off=5040
+1793868603.26 adapt notches 1 -> 3 (delta=43)
+1793868604.12 a m=send st=0 delta=0 score=1.000 off=5083
+1793868605.21 a m=key st=0 delta=0 score=1.000 off=5083
+1793868608.14 c end (no crossing) off=5083
+1793868608.14 right band 24: moved rows 5112/14021 -> content, clear 0 cols
+1793868608.14 done 552x5535

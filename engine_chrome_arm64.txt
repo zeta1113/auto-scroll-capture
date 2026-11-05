@@ -1,0 +1,8 @@
+target region: (88, 155, 860, 531)
+pointer: moved max 0px during capture (1527 samples)
+result: 860x6893  scale=1.00  height ratio=13.0  time=52s  methods={'key': 40}  -> engine_chrome_arm64.png
+log: bands top=0 bot=0 left=0 right=24 downs=3 ups=0 replay=True
+log: right band 24: moved rows 0/14507 -> scrollbar, clear 24 cols
+scrollbar-like rows at right edge: 0
+lines: 240 found ([1]..[240]), sticky bar rows in result=36
+PASS

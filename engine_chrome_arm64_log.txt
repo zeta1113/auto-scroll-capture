@@ -1,0 +1,47 @@
+1793868691.78 version=1.5.15 sticky=False speed=1.0 auto_top=True
+1793868692.32 start region=(88, 155, 860, 531) img=860x531 sc=1 hwnd=WinRef(pid=4111, wid=33, rect=(80, 25, 900, 681)) methods=['send', 'key', 'hid', 'wheel'] notches=2 wait=0.35
+1793868695.45 probe -> key moved=160 methods=['key', 'send']
+1793868695.45 adapt per_notch=80px -> notches=2 top=4
+1793868702.09 bands top=0 bot=0 left=0 right=24 downs=3 ups=0 replay=True
+1793868703.27 a m=key st=0 delta=160 score=1.000 off=480
+1793868704.30 a m=key st=0 delta=160 score=1.000 off=640
+1793868705.48 a m=key st=0 delta=160 score=1.000 off=800
+1793868706.41 a m=key st=0 delta=160 score=1.000 off=960
+1793868707.45 a m=key st=0 delta=160 score=1.000 off=1120
+1793868708.49 a m=key st=0 delta=160 score=1.000 off=1280
+1793868709.47 a m=key st=0 delta=160 score=1.000 off=1440
+1793868710.39 a m=key st=0 delta=160 score=1.000 off=1600
+1793868711.40 a m=key st=0 delta=160 score=1.000 off=1760
+1793868712.29 a m=key st=0 delta=160 score=1.000 off=1920
+1793868713.35 a m=key st=0 delta=160 score=1.000 off=2080
+1793868714.40 a m=key st=0 delta=160 score=1.000 off=2240
+1793868715.28 a m=key st=0 delta=160 score=1.000 off=2400
+1793868716.20 a m=key st=0 delta=160 score=1.000 off=2560
+1793868717.07 a m=key st=0 delta=160 score=1.000 off=2720
+1793868718.05 a m=key st=0 delta=160 score=1.000 off=2880
+1793868719.16 a m=key st=0 delta=160 score=1.000 off=3040
+1793868720.21 a m=key st=0 delta=160 score=1.000 off=3200
+1793868721.21 a m=key st=0 delta=160 score=1.000 off=3360
+1793868722.13 a m=key st=0 delta=160 score=1.000 off=3520
+1793868723.12 a m=key st=0 delta=160 score=1.000 off=3680
+1793868724.16 a m=key st=0 delta=160 score=1.000 off=3840
+1793868725.11 a m=key st=0 delta=160 score=1.000 off=4000
+1793868726.15 a m=key st=0 delta=160 score=1.000 off=4160
+1793868727.16 a m=key st=0 delta=160 score=1.000 off=4320
+1793868728.23 a m=key st=0 delta=160 score=1.000 off=4480
+1793868729.23 a m=key st=0 delta=160 score=1.000 off=4640
+1793868730.22 a m=key st=0 delta=160 score=1.000 off=4800
+1793868731.15 a m=key st=0 delta=160 score=1.000 off=4960
+1793868732.12 a m=key st=0 delta=160 score=1.000 off=5120
+1793868733.00 a m=key st=0 delta=160 score=1.000 off=5280
+1793868733.88 a m=key st=0 delta=160 score=1.000 off=5440
+1793868734.90 a m=key st=0 delta=160 score=1.000 off=5600
+1793868735.88 a m=key st=0 delta=160 score=1.000 off=5760
+1793868736.85 a m=key st=0 delta=160 score=1.000 off=5920
+1793868737.89 a m=key st=0 delta=160 score=1.000 off=6080
+1793868738.79 a m=key st=0 delta=122 score=1.000 off=6240
+1793868739.73 a m=key st=0 delta=0 score=1.000 off=6362
+1793868740.30 a m=send st=0 delta=0 score=1.000 off=6362
+1793868743.62 c end (no crossing) off=6362
+1793868743.62 right band 24: moved rows 0/14507 -> scrollbar, clear 24 cols
+1793868743.67 done 860x6893
