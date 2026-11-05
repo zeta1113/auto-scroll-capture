@@ -1,0 +1,7 @@
+target region: (132, 175, 552, 452)
+pointer: moved max 0px during capture (3201 samples)
+result: 552x6981  scale=1.00  height ratio=15.4  time=33s  methods={'send': 58}  -> engine_win__sticky.png
+log: bands top=0 bot=0 left=100 right=6 downs=3 ups=0 replay=False
+log: right band 6: moved rows 3340/16099 -> content, clear 0 cols
+lines: 240 found ([1]..[240]), sticky bar rows in result=0
+PASS
