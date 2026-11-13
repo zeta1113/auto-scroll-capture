@@ -1,0 +1,125 @@
+1794537246.91 version=1.5.16 sticky=False speed=1.0 auto_top=True
+1794537247.38 start region=(7, 0, 990, 693) img=990x693 sc=1 hwnd=131216 methods=['send', 'key', 'wheel'] notches=2 wait=0.35
+1794537248.29 probe -> send moved=400 methods=['send']
+1794537248.29 adapt per_notch=200px -> notches=1 top=2
+1794537251.61 bands top=90 bot=0 left=0 right=40 downs=3 ups=0 replay=False
+1794537253.20 a m=send st=0 delta=200 score=1.000 off=0
+1794537253.79 a m=send st=0 delta=200 score=1.000 off=200
+1794537254.40 a m=send st=0 delta=200 score=1.000 off=400
+1794537255.01 a m=send st=0 delta=200 score=1.000 off=600
+1794537255.61 a m=send st=0 delta=200 score=1.000 off=800
+1794537256.21 a m=send st=0 delta=200 score=1.000 off=1000
+1794537256.81 a m=send st=0 delta=200 score=1.000 off=1200
+1794537257.41 a m=send st=0 delta=200 score=1.000 off=1400
+1794537258.03 a m=send st=0 delta=200 score=1.000 off=1600
+1794537258.63 a m=send st=0 delta=200 score=1.000 off=1800
+1794537259.26 a m=send st=0 delta=200 score=1.000 off=2000
+1794537259.86 a m=send st=0 delta=200 score=1.000 off=2200
+1794537260.47 a m=send st=28 delta=200 score=1.000 off=2400
+1794537261.07 a m=send st=34 delta=200 score=1.000 off=2600
+1794537261.69 a m=send st=0 delta=200 score=0.996 off=2800
+1794537262.54 inner box (53, 602, 50, 651) at (502,391) -> (807, 391)
+1794537263.40 inner box (53, 602, 50, 651) at (807,391) -> (807, 391)
+1794537264.25 inner box (53, 602, 50, 651) at (807,391) -> (807, 391)
+1794537265.10 inner box (53, 602, 50, 651) at (807,391) -> (807, 391)
+1794537265.95 inner box (53, 602, 50, 651) at (807,391) -> (807, 391)
+1794537266.81 inner box (53, 602, 50, 651) at (807,391) -> (807, 391)
+1794537267.66 inner box (53, 602, 50, 651) at (807,391) -> (807, 391)
+1794537268.51 inner box (53, 602, 50, 651) at (807,391) -> (807, 391)
+1794537269.36 inner box (53, 602, 50, 651) at (807,391) -> (807, 391)
+1794537270.21 inner box (53, 602, 50, 651) at (807,391) -> (807, 391)
+1794537271.07 inner box (53, 602, 50, 651) at (807,391) -> (807, 391)
+1794537271.92 inner box (53, 602, 50, 651) at (807,391) -> (807, 391)
+1794537272.48 a m=send st=61 delta=200 score=1.000 off=3000
+1794537273.04 a m=send st=70 delta=200 score=1.000 off=3200
+1794537273.59 a m=send st=69 delta=200 score=1.000 off=3400
+1794537274.16 a m=send st=56 delta=200 score=1.000 off=3600
+1794537274.72 a m=send st=53 delta=200 score=1.000 off=3800
+1794537275.28 a m=send st=54 delta=200 score=1.000 off=4000
+1794537275.85 a m=send st=55 delta=200 score=1.000 off=4200
+1794537276.41 a m=send st=55 delta=200 score=1.000 off=4400
+1794537276.97 a m=send st=65 delta=200 score=1.000 off=4600
+1794537277.56 a m=send st=64 delta=200 score=1.000 off=4800
+1794537278.13 a m=send st=56 delta=200 score=1.000 off=5000
+1794537278.69 a m=send st=57 delta=200 score=1.000 off=5200
+1794537279.24 a m=send st=65 delta=200 score=1.000 off=5400
+1794537279.80 a m=send st=65 delta=200 score=1.000 off=5600
+1794537280.37 a m=send st=251 delta=200 score=1.000 off=5800
+1794537280.84 a m=send st=60 delta=200 score=1.000 off=6000
+1794537281.32 a m=send st=61 delta=200 score=1.000 off=6200
+1794537281.80 a m=send st=53 delta=200 score=1.000 off=6400
+1794537282.36 a m=send st=54 delta=200 score=1.000 off=6600
+1794537282.93 a m=send st=56 delta=200 score=1.000 off=6800
+1794537283.50 a m=send st=272 delta=198 score=0.444 off=7000
+1794537283.51 a retry wide d=200 score=0.985
+1794537284.07 a m=send st=72 delta=200 score=1.000 off=7200
+1794537284.64 a m=send st=59 delta=200 score=1.000 off=7400
+1794537285.20 a m=send st=148 delta=200 score=1.000 off=7600
+1794537285.68 a m=send st=53 delta=200 score=1.000 off=7800
+1794537286.25 a m=send st=53 delta=200 score=1.000 off=8000
+1794537286.81 a m=send st=53 delta=200 score=1.000 off=8200
+1794537287.38 a m=send st=53 delta=200 score=1.000 off=8400
+1794537287.87 a m=send st=53 delta=200 score=1.000 off=8600
+1794537288.35 a m=send st=53 delta=200 score=1.000 off=8800
+1794537288.83 a m=send st=60 delta=200 score=1.000 off=9000
+1794537289.41 a m=send st=54 delta=200 score=1.000 off=9200
+1794537289.98 a m=send st=53 delta=200 score=1.000 off=9400
+1794537290.55 a m=send st=61 delta=200 score=1.000 off=9600
+1794537291.11 a m=send st=301 delta=63 score=0.138 off=9800
+1794537291.12 a retry wide d=200 score=0.892
+1794537291.68 a m=send st=142 delta=200 score=1.000 off=10000
+1794537292.16 a m=send st=58 delta=200 score=1.000 off=10200
+1794537292.64 a m=send st=57 delta=200 score=1.000 off=10400
+1794537293.21 a m=send st=57 delta=200 score=1.000 off=10600
+1794537293.79 a m=send st=53 delta=200 score=1.000 off=10800
+1794537294.36 a m=send st=53 delta=200 score=1.000 off=11000
+1794537294.93 a m=send st=84 delta=200 score=1.000 off=11200
+1794537295.50 a m=send st=53 delta=200 score=1.000 off=11400
+1794537296.06 a m=send st=192 delta=200 score=1.000 off=11600
+1794537296.65 a m=send st=56 delta=200 score=1.000 off=11800
+1794537297.22 a m=send st=301 delta=177 score=0.251 off=12000
+1794537297.23 a retry wide d=200 score=0.889
+1794537297.80 a m=send st=156 delta=200 score=1.000 off=12200
+1794537298.39 a m=send st=53 delta=200 score=1.000 off=12400
+1794537298.96 a m=send st=53 delta=200 score=1.000 off=12600
+1794537299.53 a m=send st=54 delta=200 score=1.000 off=12800
+1794537300.12 a m=send st=59 delta=200 score=1.000 off=13000
+1794537300.69 a m=send st=301 delta=176 score=0.274 off=13200
+1794537300.71 a retry wide d=200 score=1.000
+1794537301.32 a m=send st=119 delta=200 score=1.000 off=13400
+1794537301.89 a m=send st=62 delta=200 score=1.000 off=13600
+1794537302.47 a m=send st=285 delta=137 score=0.151 off=13800
+1794537302.48 a retry wide d=200 score=0.955
+1794537303.05 a m=send st=85 delta=200 score=1.000 off=14000
+1794537303.62 a m=send st=55 delta=200 score=1.000 off=14200
+1794537304.19 a m=send st=53 delta=200 score=1.000 off=14400
+1794537304.76 a m=send st=53 delta=200 score=1.000 off=14600
+1794537305.33 a m=send st=53 delta=200 score=1.000 off=14800
+1794537305.90 a m=send st=53 delta=200 score=1.000 off=15000
+1794537306.48 a m=send st=53 delta=200 score=1.000 off=15200
+1794537307.05 a m=send st=285 delta=177 score=0.485 off=15400
+1794537307.06 a retry wide d=200 score=0.935
+1794537307.62 a m=send st=85 delta=200 score=1.000 off=15600
+1794537308.19 a m=send st=53 delta=200 score=1.000 off=15800
+1794537308.76 a m=send st=53 delta=200 score=1.000 off=16000
+1794537309.34 a m=send st=62 delta=200 score=1.000 off=16200
+1794537309.82 a m=send st=53 delta=200 score=1.000 off=16400
+1794537310.31 a m=send st=53 delta=200 score=1.000 off=16600
+1794537310.79 a m=send st=54 delta=200 score=1.000 off=16800
+1794537311.37 a m=send st=53 delta=200 score=1.000 off=17000
+1794537311.94 a m=send st=53 delta=200 score=1.000 off=17200
+1794537312.51 a m=send st=53 delta=200 score=1.000 off=17400
+1794537313.08 a m=send st=53 delta=200 score=1.000 off=17600
+1794537313.65 a m=send st=53 delta=200 score=1.000 off=17800
+1794537314.23 a m=send st=53 delta=200 score=1.000 off=18000
+1794537314.82 a m=send st=53 delta=200 score=1.000 off=18200
+1794537315.39 a m=send st=53 delta=200 score=1.000 off=18400
+1794537315.96 a m=send st=186 delta=200 score=1.000 off=18600
+1794537316.54 a m=send st=301 delta=172 score=0.232 off=18800
+1794537316.55 a retry wide d=200 score=0.921
+1794537317.12 a m=send st=61 delta=49 score=1.000 off=19000
+1794537317.12 adapt notches 1 -> 3 (delta=49)
+1794537317.61 a m=send st=0 delta=0 score=1.000 off=19049
+1794537318.80 c end (no crossing) off=19049
+1794537318.80 right band 40: moved rows 367/31273 -> scrollbar, clear 13 cols
+1794537318.84 done 990x19742

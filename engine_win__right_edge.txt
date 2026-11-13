@@ -1,0 +1,10 @@
+target region: (132, 171, 552, 456)
+pointer: moved max 0px during capture (4239 samples)
+result: 552x6987  scale=1.00  height ratio=15.3  time=44s  methods={'send': 58}  -> engine_win__right_edge.png
+log: bands top=2 bot=0 left=100 right=27 downs=3 ups=0 replay=False
+log: right band 27: moved rows 4944/18105 -> content, clear 5 cols
+right edge blue rows: 0.250 (first screen 0.232, scrollbar 13px)
+top line rows: 2
+scrollbar thumb rows below first screen: 0
+lines: 240 found ([1]..[240]), sticky bar rows in result=0
+PASS
