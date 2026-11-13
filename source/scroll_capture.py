@@ -15,6 +15,7 @@
 
 import os
 import io
+import math
 import sys
 import json
 import time
@@ -339,6 +340,30 @@ TR = {
         "viewer_save_fail": "저장에 실패했습니다.",
         "viewer_open_fail": "이미지를 열 수 없습니다.",
         "viewer_unsaved": "그린 내용을 저장하지 않았습니다. 저장할까요?",
+        "viewer_edit": "✏ 편집",
+        "viewer_crop": "✂ 자르기",
+        "viewer_crop_apply": "✓ 자르기 적용",
+        "viewer_tool_pen": "선 그리기",
+        "viewer_tool_line": "직선",
+        "viewer_tool_arrow_l": "왼쪽 화살표",
+        "viewer_tool_arrow_r": "오른쪽 화살표",
+        "viewer_tool_arrow_b": "양쪽 화살표",
+        "viewer_tool_rect": "사각형",
+        "viewer_tool_tri": "삼각형",
+        "viewer_tool_oval": "원",
+        "viewer_line_color": "선 색",
+        "viewer_fill_color": "면 색",
+        "viewer_width": "선 두께",
+        "viewer_theme_colors": "테마 색상",
+        "viewer_std_colors": "표준 색",
+        "viewer_custom_colors": "사용자 지정 색",
+        "viewer_more_colors": "다른 색(M)...",
+        "viewer_eyedropper": "색상 추출",
+        "viewer_no_fill": "채우기 없음",
+        "viewer_hint_pen": "끌어서 자유롭게 그리기 · Ctrl+Z 되돌리기 · Ctrl+S 저장",
+        "viewer_hint_shape": "끌어서 그리기 · Shift: 정사각형·정원·45° · Ctrl+Z 되돌리기",
+        "viewer_hint_crop": "끌어서 남길 영역 선택 · Enter 자르기 적용 · Esc 취소",
+        "viewer_hint_dropper": "이미지에서 가져올 색을 클릭하세요 · Esc 취소",
         "confirm_delete_fmt": "정말 삭제하시겠습니까?\n{name}",
         "delete_fail": "파일 삭제에 실패했습니다.",
         "copied_mark": "✓",
@@ -457,6 +482,30 @@ TR = {
         "viewer_save_fail": "Failed to save the image.",
         "viewer_open_fail": "Cannot open the image.",
         "viewer_unsaved": "Your drawing is not saved. Save it now?",
+        "viewer_edit": "✏ Edit",
+        "viewer_crop": "✂ Crop",
+        "viewer_crop_apply": "✓ Apply Crop",
+        "viewer_tool_pen": "Pen",
+        "viewer_tool_line": "Line",
+        "viewer_tool_arrow_l": "Left Arrow",
+        "viewer_tool_arrow_r": "Right Arrow",
+        "viewer_tool_arrow_b": "Double Arrow",
+        "viewer_tool_rect": "Rectangle",
+        "viewer_tool_tri": "Triangle",
+        "viewer_tool_oval": "Circle",
+        "viewer_line_color": "Line",
+        "viewer_fill_color": "Fill",
+        "viewer_width": "Width",
+        "viewer_theme_colors": "Theme Colors",
+        "viewer_std_colors": "Standard Colors",
+        "viewer_custom_colors": "Custom Colors",
+        "viewer_more_colors": "More Colors...",
+        "viewer_eyedropper": "Eyedropper",
+        "viewer_no_fill": "No Fill",
+        "viewer_hint_pen": "Drag to draw freely · Ctrl+Z undo · Ctrl+S save",
+        "viewer_hint_shape": "Drag to draw · Shift: square/circle/45° · Ctrl+Z undo",
+        "viewer_hint_crop": "Drag to select the area to keep · Enter apply · Esc cancel",
+        "viewer_hint_dropper": "Click the image to pick a color · Esc cancel",
         "confirm_delete_fmt": "Are you sure you want to delete?\n{name}",
         "delete_fail": "Failed to delete the file.",
         "copied_mark": "✓",
@@ -575,6 +624,30 @@ TR = {
         "viewer_save_fail": "保存に失敗しました。",
         "viewer_open_fail": "画像を開けません。",
         "viewer_unsaved": "描いた内容が保存されていません。保存しますか？",
+        "viewer_edit": "✏ 編集",
+        "viewer_crop": "✂ トリミング",
+        "viewer_crop_apply": "✓ トリミング適用",
+        "viewer_tool_pen": "ペン",
+        "viewer_tool_line": "直線",
+        "viewer_tool_arrow_l": "左矢印",
+        "viewer_tool_arrow_r": "右矢印",
+        "viewer_tool_arrow_b": "両矢印",
+        "viewer_tool_rect": "四角形",
+        "viewer_tool_tri": "三角形",
+        "viewer_tool_oval": "円",
+        "viewer_line_color": "線の色",
+        "viewer_fill_color": "塗りつぶし",
+        "viewer_width": "線の太さ",
+        "viewer_theme_colors": "テーマの色",
+        "viewer_std_colors": "標準の色",
+        "viewer_custom_colors": "ユーザー設定の色",
+        "viewer_more_colors": "その他の色(M)...",
+        "viewer_eyedropper": "スポイト",
+        "viewer_no_fill": "塗りつぶしなし",
+        "viewer_hint_pen": "ドラッグで自由に描く · Ctrl+Z 元に戻す · Ctrl+S 保存",
+        "viewer_hint_shape": "ドラッグで描く · Shift: 正方形・正円・45° · Ctrl+Z 元に戻す",
+        "viewer_hint_crop": "残す範囲をドラッグで選択 · Enter 適用 · Esc 取消",
+        "viewer_hint_dropper": "画像をクリックして色を取得 · Esc 取消",
         "confirm_delete_fmt": "本当に削除しますか？\n{name}",
         "delete_fail": "ファイルの削除に失敗しました。",
         "copied_mark": "✓",
@@ -693,6 +766,30 @@ TR = {
         "viewer_save_fail": "保存失败。",
         "viewer_open_fail": "无法打开图像。",
         "viewer_unsaved": "画的内容尚未保存。现在保存吗？",
+        "viewer_edit": "✏ 编辑",
+        "viewer_crop": "✂ 裁剪",
+        "viewer_crop_apply": "✓ 应用裁剪",
+        "viewer_tool_pen": "画笔",
+        "viewer_tool_line": "直线",
+        "viewer_tool_arrow_l": "左箭头",
+        "viewer_tool_arrow_r": "右箭头",
+        "viewer_tool_arrow_b": "双向箭头",
+        "viewer_tool_rect": "矩形",
+        "viewer_tool_tri": "三角形",
+        "viewer_tool_oval": "圆形",
+        "viewer_line_color": "线条颜色",
+        "viewer_fill_color": "填充颜色",
+        "viewer_width": "线条粗细",
+        "viewer_theme_colors": "主题颜色",
+        "viewer_std_colors": "标准色",
+        "viewer_custom_colors": "自定义颜色",
+        "viewer_more_colors": "其他颜色(M)...",
+        "viewer_eyedropper": "取色器",
+        "viewer_no_fill": "无填充",
+        "viewer_hint_pen": "拖动自由绘制 · Ctrl+Z 撤销 · Ctrl+S 保存",
+        "viewer_hint_shape": "拖动绘制 · Shift: 正方形/正圆/45° · Ctrl+Z 撤销",
+        "viewer_hint_crop": "拖动选择要保留的区域 · Enter 应用 · Esc 取消",
+        "viewer_hint_dropper": "点击图像取色 · Esc 取消",
         "confirm_delete_fmt": "确定要删除吗？\n{name}",
         "delete_fail": "删除文件失败。",
         "copied_mark": "✓",
@@ -3696,12 +3793,251 @@ def pick_font_family():
 # ==================================================================
 # 파일 뷰어 — 확대/축소·스크롤, 편집 모드(선 그리기)·저장
 # ==================================================================
-class ImageViewer:
-    """캡처 파일 보기 창. 긴 스크롤 캡처도 보이는 부분만 그려 가볍게 동작.
-    선은 '이미지 픽셀' 좌표로 기억해 두었다가 저장할 때 이미지에 그린다."""
+def _hex_rgb(c):
+    c = c.lstrip("#")
+    return tuple(int(c[i:i + 2], 16) for i in (0, 2, 4))
 
-    COLORS = ["#E53935", "#1E88E5", "#43A047", "#FDD835", "#000000", "#FFFFFF"]
-    WIDTHS = [3, 6, 12]          # 선 굵기(이미지 픽셀)
+
+def _rgb_hex(rgb):
+    return "#%02X%02X%02X" % tuple(max(0, min(255, int(round(v)))) for v in rgb[:3])
+
+
+def _hex_mix(c, other, t):
+    """색 c 를 other 쪽으로 t(0~1)만큼 섞은 색."""
+    a, b = _hex_rgb(c), _hex_rgb(other)
+    return _rgb_hex([a[i] + (b[i] - a[i]) * t for i in range(3)])
+
+
+def _office_palette():
+    """Windows(오피스) 기본 색 팔레트: 테마 색 10개 × (기본 + 밝게/어둡게 5단계), 표준 색 10개."""
+    base = ["#FFFFFF", "#000000", "#C00000", "#FF0000", "#FF8C00",
+            "#FFD700", "#00B050", "#00B0F0", "#4472C4", "#7030A0"]
+    rows = [base]
+    for k in range(5):
+        row = []
+        for i, c in enumerate(base):
+            if i == 0:          # 흰색 → 점점 어두운 회색
+                row.append(_hex_mix(c, "#000000", (0.05, 0.15, 0.25, 0.35, 0.5)[k]))
+            elif i == 1:        # 검정 → 점점 밝은 회색(아래로 갈수록 어둡게)
+                row.append(_hex_mix(c, "#FFFFFF", (0.5, 0.35, 0.25, 0.15, 0.05)[k]))
+            elif k < 3:         # 밝게 80%·60%·40%
+                row.append(_hex_mix(c, "#FFFFFF", (0.8, 0.6, 0.4)[k]))
+            else:               # 어둡게 25%·50%
+                row.append(_hex_mix(c, "#000000", (0.25, 0.5)[k - 3]))
+        rows.append(row)
+    std = ["#C00000", "#FF0000", "#FFC000", "#FFFF00", "#92D050",
+           "#00B050", "#00B0F0", "#0070C0", "#002060", "#7030A0"]
+    return rows, std
+
+
+class _Popup:
+    """도구 막대 아래에 뜨는 작은 선택 창(바깥을 누르거나 Esc 면 닫힘)."""
+
+    def __init__(self, viewer, anchor):
+        self.viewer = viewer
+        self.top = tk.Toplevel(viewer.top)
+        self.top.wm_overrideredirect(True)
+        self.top.configure(bg="#C8C8C8")
+        self.body = tk.Frame(self.top, bg="white")
+        self.body.pack(padx=1, pady=1)
+        self.anchor = anchor
+        self.top.bind("<Escape>", lambda e: self.close())
+        self.top.bind("<ButtonPress-1>", self._maybe_outside, add="+")
+
+    def show(self):
+        t = self.top
+        t.update_idletasks()
+        x = self.anchor.winfo_rootx() + self.anchor.winfo_width() + 4
+        y = self.anchor.winfo_rooty()
+        sh = t.winfo_screenheight()
+        y = max(0, min(y, sh - t.winfo_reqheight() - 40))
+        t.geometry(f"+{x}+{y}")
+        t.deiconify()
+        t.lift()
+        try:
+            t.grab_set()
+        except tk.TclError:
+            pass
+        t.focus_force()
+
+    def _maybe_outside(self, e):
+        t = self.top
+        x, y = e.x_root, e.y_root
+        if not (t.winfo_rootx() <= x < t.winfo_rootx() + t.winfo_width()
+                and t.winfo_rooty() <= y < t.winfo_rooty() + t.winfo_height()):
+            self.close()
+
+    def close(self):
+        try:
+            self.top.grab_release()
+        except tk.TclError:
+            pass
+        try:
+            self.top.destroy()
+        except tk.TclError:
+            pass
+
+
+class ColorPopup(_Popup):
+    """테마 색상 / 표준 색 / 사용자 지정 색 / 다른 색... / 색상 추출 — Windows 기본 팔레트 모양."""
+    CELL, GAP = 18, 4
+    CUSTOM = []          # 사용자 지정 색(최근 10개, 앱 실행 중 유지)
+
+    def __init__(self, viewer, anchor, current, on_pick, allow_none=False):
+        super().__init__(viewer, anchor)
+        self.on_pick = on_pick
+        self.current = current
+        t = viewer.t
+        f = viewer.app.f_cap
+        rows, std = _office_palette()
+        pad = dict(anchor="w", padx=8)
+        if allow_none:
+            b = tk.Label(self.body, text="✕  " + t("viewer_no_fill"), bg="white",
+                         fg=MC["text"], font=f, cursor="hand2", anchor="w")
+            b.pack(fill="x", padx=4, pady=(6, 2))
+            b.bind("<Enter>", lambda e: b.configure(bg="#E5F3FF"))
+            b.bind("<Leave>", lambda e: b.configure(bg="white"))
+            b.bind("<ButtonRelease-1>", lambda e: self._pick(None))
+        self._section(t("viewer_theme_colors"), [rows[0]] + [None] + rows[1:], pad)
+        self._section(t("viewer_std_colors"), [std], pad)
+        cust = (self.CUSTOM + [None] * 10)[:10]
+        self._section(t("viewer_custom_colors"), [cust], pad)
+        tk.Frame(self.body, height=1, bg=MC["border"]).pack(fill="x", padx=4, pady=(6, 2))
+        for key, cmd in (("viewer_more_colors", self._more), ("viewer_eyedropper", self._dropper)):
+            b = tk.Label(self.body, text=t(key), bg="white", fg=MC["text"], font=f,
+                         cursor="hand2", anchor="w")
+            b.pack(fill="x", padx=4, pady=1)
+            b.bind("<Enter>", lambda e, w_=b: w_.configure(bg="#E5F3FF"))
+            b.bind("<Leave>", lambda e, w_=b: w_.configure(bg="white"))
+            b.bind("<ButtonRelease-1>", lambda e, c=cmd: c())
+        tk.Frame(self.body, height=6, bg="white").pack()
+        self.show()
+
+    def _section(self, title, rows, pad):
+        fam, size = self.viewer.app.f_cap[0], self.viewer.app.f_cap[1]
+        tk.Label(self.body, text=title, bg="#F0F0F0", fg=MC["text"], anchor="w",
+                 font=(fam, size, "bold")).pack(fill="x", padx=4, pady=(6, 3))
+        C, G = self.CELL, self.GAP
+        n_gap = sum(1 for r in rows if r is None)
+        nrows = len(rows) - n_gap
+        cw = 10 * C + 9 * G + 2
+        ch = nrows * C + n_gap * G + 2
+        cv = tk.Canvas(self.body, width=cw, height=ch, bg="white", highlightthickness=0,
+                       cursor="hand2")
+        cv.pack(padx=8)
+        cells = []
+        y = 1
+        for r in rows:
+            if r is None:
+                y += G
+                continue
+            for i, col in enumerate(r):
+                x = 1 + i * (C + G)
+                if col is None:
+                    cv.create_rectangle(x, y, x + C - 1, y + C - 1, outline="#C8C8C8", fill="white")
+                    continue
+                sel = (self.current or "").upper() == col.upper()
+                it = cv.create_rectangle(x, y, x + C - 1, y + C - 1, fill=col,
+                                         outline="#E07000" if sel else "#C8C8C8",
+                                         width=2 if sel else 1)
+                cells.append((x, y, col, it))
+            y += C
+        hover = {"it": None}
+
+        def at(e):
+            for x, y, col, it in cells:
+                if x <= e.x < x + C and y <= e.y < y + C:
+                    return col, it
+            return None, None
+
+        def move(e):
+            _col, it = at(e)
+            if hover["it"] is not None and hover["it"] != it:
+                cv.delete("hov")
+            if it is not None and hover["it"] != it:
+                x0, y0, x1, y1 = cv.coords(it)
+                cv.create_rectangle(x0 - 1, y0 - 1, x1 + 1, y1 + 1, outline="#E07000",
+                                    width=2, tags="hov")
+            hover["it"] = it
+
+        cv.bind("<Motion>", move)
+        cv.bind("<Leave>", lambda e: (cv.delete("hov"), hover.update(it=None)))
+        def click(e):
+            col, _it = at(e)
+            if col:
+                self._pick(col)
+        cv.bind("<ButtonRelease-1>", click)
+
+    def _pick(self, col):
+        self.close()
+        self.on_pick(col)
+
+    def _more(self):
+        from tkinter import colorchooser
+        self.close()
+        init = self.current or "#FF0000"
+        try:
+            res = colorchooser.askcolor(color=init, parent=self.viewer.top)
+        except tk.TclError:
+            res = (None, None)
+        if res and res[1]:
+            col = res[1].upper()
+            self.remember(col)
+            self.on_pick(col)
+
+    def _dropper(self):
+        self.close()
+        cb = self.on_pick
+
+        def picked(col):
+            self.remember(col)
+            cb(col)
+        self.viewer.start_eyedropper(picked)
+
+    @classmethod
+    def remember(cls, col):
+        col = col.upper()
+        if col in cls.CUSTOM:
+            cls.CUSTOM.remove(col)
+        cls.CUSTOM.insert(0, col)
+        del cls.CUSTOM[10:]
+
+
+class WidthPopup(_Popup):
+    """선 굵기 1~15px 목록(굵기 미리보기 선 포함)."""
+
+    def __init__(self, viewer, anchor, current, on_pick):
+        super().__init__(viewer, anchor)
+        f = viewer.app.f_cap
+        for wv in range(1, 16):
+            row = tk.Canvas(self.body, width=150, height=max(22, wv + 10), bg="white",
+                            highlightthickness=0, cursor="hand2")
+            row.pack(padx=3, pady=0)
+
+            def paint(c=row, v=wv, hov=False):
+                c.delete("all")
+                hh = int(c.cget("height"))
+                if v == current or hov:
+                    c.create_rectangle(1, 1, 148, hh - 2,
+                                       outline=MC["primary"] if v == current else "#C8C8C8",
+                                       fill="#E5F3FF" if hov else "white")
+                c.create_text(10, hh // 2, text=f"{v}px", anchor="w", font=f, fill=MC["text"])
+                c.create_line(52, hh // 2, 140, hh // 2, width=v, fill="#202020")
+            paint()
+            row.bind("<Enter>", lambda e, p=paint: p(hov=True))
+            row.bind("<Leave>", lambda e, p=paint: p())
+            row.bind("<ButtonRelease-1>", lambda e, v=wv: (self.close(), on_pick(v)))
+        self.show()
+
+
+class ImageViewer:
+    """캡처 파일 보기·편집 창. 긴 스크롤 캡처도 보이는 부분만 그려 가볍게 동작.
+    - 편집: 툴박스(선 그리기·직선·화살표·사각형·삼각형·원) — 그린 것은 '이미지 픽셀' 좌표의
+      벡터로 기억했다가 저장할 때 이미지에 그린다
+    - 자르기: 그 시점까지 그린 것을 이미지에 넣고 잘라 새 바탕으로(되돌리기 가능)"""
+
+    TOOLS = ["pen", "line", "arrow_l", "arrow_r", "arrow_b", "rect", "tri", "oval"]
+    SHAPES = ("rect", "tri", "oval")
     ZOOMS = [0.1, 0.15, 0.25, 0.33, 0.5, 0.67, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0, 4.0]
 
     def __init__(self, app, path, on_saved=None, on_close=None):
@@ -3711,14 +4047,19 @@ class ImageViewer:
         self.on_saved = on_saved
         self.on_close = on_close
         with Image.open(path) as im:
-            self.img = im.convert("RGB")
-        self.strokes = []            # [(색, 굵기, [(x, y), ...])] — 이미지 픽셀 좌표
-        self.cur = None              # 그리는 중인 선
-        self.cur_item = None
-        self.mode = "view"
-        self.color = self.COLORS[0]
-        self.width = self.WIDTHS[1]
-        self.dirty = False
+            self.img = im.convert("RGB")       # 현재 바탕(자르기를 적용한 결과)
+        self.shapes = []             # [(op, [캔버스 항목])] — 마지막 자르기 이후 그린 것
+        self.actions = []            # 되돌리기 목록: ("shape",) / ("crop", 이전 바탕, 이전 op들)
+        self.cur = None              # 그리는 중인 op
+        self.cur_items = []
+        self.mode = "view"           # view / edit / crop
+        self.tool = "pen"
+        self.color = "#FF0000"
+        self.fill = None             # 도형 면 색(None = 채우기 없음)
+        self.width = 3
+        self.crop_box = None
+        self._crop_start = None
+        self._pick_cb = None         # 색상 추출 중이면 콜백
         self.scale = 1.0
         self._photo = None
         self._render_job = None
@@ -3731,10 +4072,10 @@ class ImageViewer:
         self.top.title(os.path.basename(path))
         sw, sh = self.top.winfo_screenwidth(), self.top.winfo_screenheight()
         W, H = self.img.size
-        ww = int(min(sw * 0.85, max(720, W + 60)))
+        ww = int(min(sw * 0.85, max(760, W + 120)))
         wh = int(sh * 0.85)
         self.top.geometry(f"{ww}x{wh}+{(sw - ww) // 2}+{max(0, (sh - wh) // 3)}")
-        self.top.minsize(560, 360)
+        self.top.minsize(600, 420)
         try:
             ico = resource_path("icon.ico")
             if os.path.isfile(ico):
@@ -3742,7 +4083,7 @@ class ImageViewer:
         except Exception:
             pass
 
-        # ----- 도구 막대 -----
+        # ----- 위 도구 막대: 보기 · 자르기 · 되돌리기 · 저장 -----
         bar = tk.Frame(self.top, bg=C["surface"])
         bar.pack(side="top", fill="x")
         inner = tk.Frame(bar, bg=C["surface"])
@@ -3756,26 +4097,10 @@ class ImageViewer:
             return b
 
         self.b_view = btn(inner, "viewer_view", lambda: self.set_mode("view"), "primary")
-        self.b_draw = btn(inner, "viewer_draw", lambda: self.set_mode("draw"))
+        self.b_edit = btn(inner, "viewer_edit", lambda: self.set_mode("edit"))
+        self.b_crop = btn(inner, "viewer_crop", lambda: self.set_mode("crop"))
+        self.b_crop_ok = btn(inner, "viewer_crop_apply", self.apply_crop, "primary")
         tk.Frame(inner, width=10, bg=C["surface"]).pack(side="left")
-        # 색상 견본
-        self.sw_items = []
-        for col in self.COLORS:
-            c = tk.Canvas(inner, width=22, height=22, bg=C["surface"],
-                          highlightthickness=0, cursor="hand2")
-            c.pack(side="left", padx=1)
-            c.bind("<Button-1>", lambda e, cc=col: self.set_color(cc))
-            self.sw_items.append((col, c))
-        tk.Frame(inner, width=8, bg=C["surface"]).pack(side="left")
-        # 굵기
-        self.wd_items = []
-        for wv in self.WIDTHS:
-            c = tk.Canvas(inner, width=24, height=22, bg=C["surface"],
-                          highlightthickness=0, cursor="hand2")
-            c.pack(side="left", padx=1)
-            c.bind("<Button-1>", lambda e, v=wv: self.set_width(v))
-            self.wd_items.append((wv, c))
-        tk.Frame(inner, width=8, bg=C["surface"]).pack(side="left")
         self.b_undo = btn(inner, "viewer_undo", self.undo)
         self.b_save = btn(inner, "viewer_save", self.save, "primary")
         btn(inner, "viewer_save_as", self.save_as)
@@ -3795,13 +4120,50 @@ class ImageViewer:
                                font=app_.f_cap)
         self.status.pack(side="bottom", fill="x", padx=8, pady=(2, 4))
 
-        # ----- 이미지 영역 -----
         body = tk.Frame(self.top, bg=C["bg"])
         body.pack(side="top", fill="both", expand=True)
-        self.cv = tk.Canvas(body, bg="#9E9E9E", highlightthickness=0,
+
+        # ----- 왼쪽 툴박스 -----
+        box = tk.Frame(body, bg=C["surface"], highlightbackground=C["border"],
+                       highlightthickness=1)
+        box.pack(side="left", fill="y")
+        self.tool_btns = {}
+        grid = tk.Frame(box, bg=C["surface"])
+        grid.pack(padx=4, pady=(6, 4))
+        for i, tl in enumerate(self.TOOLS):
+            c = tk.Canvas(grid, width=34, height=30, bg=C["surface"], highlightthickness=0,
+                          cursor="hand2")
+            c.grid(row=i // 2, column=i % 2, padx=1, pady=1)
+            c.bind("<Button-1>", lambda e, v=tl: self.set_tool(v))
+            Tooltip(c, self.t("viewer_tool_" + tl), self.t(
+                "viewer_hint_pen" if tl == "pen" else "viewer_hint_shape"))
+            self.tool_btns[tl] = c
+        tk.Frame(box, height=1, bg=C["border"]).pack(fill="x", padx=4, pady=4)
+
+        def labeled(key):
+            tk.Label(box, text=self.t(key), bg=C["surface"], fg=C["muted"],
+                     font=app_.f_cap).pack(anchor="w", padx=6)
+            c = tk.Canvas(box, width=70, height=26, bg=C["surface"], highlightthickness=0,
+                          cursor="hand2")
+            c.pack(padx=4, pady=(0, 6))
+            return c
+        self.c_color = labeled("viewer_line_color")
+        self.c_fill = labeled("viewer_fill_color")
+        self.c_width = labeled("viewer_width")
+        self.c_color.bind("<Button-1>", lambda e: ColorPopup(
+            self, self.c_color, self.color, self._set_color))
+        self.c_fill.bind("<Button-1>", lambda e: self._fill_enabled() and ColorPopup(
+            self, self.c_fill, self.fill, self._set_fill, allow_none=True))
+        self.c_width.bind("<Button-1>", lambda e: WidthPopup(
+            self, self.c_width, self.width, self._set_width))
+
+        # ----- 이미지 영역 -----
+        area = tk.Frame(body, bg=C["bg"])
+        area.pack(side="left", fill="both", expand=True)
+        self.cv = tk.Canvas(area, bg="#9E9E9E", highlightthickness=0,
                             xscrollincrement=1, yscrollincrement=1)
-        vs = ttk.Scrollbar(body, orient="vertical", command=self._yview)
-        hs = ttk.Scrollbar(body, orient="horizontal", command=self._xview)
+        vs = ttk.Scrollbar(area, orient="vertical", command=self._yview)
+        hs = ttk.Scrollbar(area, orient="horizontal", command=self._xview)
         self.cv.configure(yscrollcommand=vs.set, xscrollcommand=hs.set)
         vs.pack(side="right", fill="y")
         hs.pack(side="bottom", fill="x")
@@ -3812,6 +4174,8 @@ class ImageViewer:
         cv.bind("<ButtonPress-1>", self._on_press)
         cv.bind("<B1-Motion>", self._on_drag)
         cv.bind("<ButtonRelease-1>", self._on_release)
+        cv.bind("<Motion>", self._on_motion)
+        cv.bind("<Leave>", lambda e: cv.delete("dot"))
         for w_ in (self.top, cv):
             w_.bind("<MouseWheel>", self._on_wheel)
             w_.bind("<Shift-MouseWheel>", lambda e: self._on_wheel(e, horiz=True))
@@ -3822,56 +4186,160 @@ class ImageViewer:
             self.top.bind(f"<{mod}-z>", lambda e: self.undo())
             self.top.bind(f"<{mod}-s>", lambda e: self.save())
             self.top.bind(f"<{mod}-0>", lambda e: self.fit())
-        self.top.bind("<Escape>", lambda e: self.close())
+        self.top.bind("<Return>", lambda e: self.apply_crop() if self.mode == "crop" else None)
+        self.top.bind("<Escape>", lambda e: self._escape())
         self.top.protocol("WM_DELETE_WINDOW", self.close)
 
         self._draw_tools()
         self._update_status()
         self.top.after(30, self.top.focus_force)
 
-    # ---------- 도구 ----------
+    # ---------- 상태 ----------
+    @property
+    def dirty(self):
+        return bool(self.actions)
+
+    @property
+    def strokes(self):          # (이전 버전 호환) 그린 것 목록
+        return self.shapes
+
+    def _fill_enabled(self):
+        return self.tool in self.SHAPES
+
+    # ---------- 도구 막대 그리기 ----------
+    def _tool_icon(self, c, tl, sel):
+        c.delete("all")
+        if sel:
+            c.create_rectangle(1, 1, 33, 29, outline=MC["primary"], fill="#E1F5FE", width=1)
+        k = "#333333"
+        if tl == "pen":
+            c.create_line(8, 21, 12, 13, 17, 18, 22, 9, 26, 12, fill=k, width=2, smooth=True,
+                          capstyle="round")
+        elif tl == "line":
+            c.create_line(8, 22, 26, 8, fill=k, width=2, capstyle="round")
+        elif tl.startswith("arrow"):
+            arrow = {"arrow_l": "first", "arrow_r": "last", "arrow_b": "both"}[tl]
+            c.create_line(7, 15, 27, 15, fill=k, width=2, arrow=arrow, arrowshape=(7, 8, 4))
+        elif tl == "rect":
+            c.create_rectangle(8, 8, 26, 22, outline=k, width=2)
+        elif tl == "tri":
+            c.create_polygon(17, 7, 27, 23, 7, 23, outline=k, fill="", width=2)
+        elif tl == "oval":
+            c.create_oval(7, 7, 27, 23, outline=k, width=2)
+
     def _draw_tools(self):
-        for col, c in self.sw_items:
-            c.delete("all")
-            sel = (col == self.color)
-            c.create_oval(3, 3, 19, 19, fill=col,
-                          outline=MC["primary"] if sel else "#9E9E9E",
-                          width=3 if sel else 1)
-        for wv, c in self.wd_items:
-            c.delete("all")
-            sel = (wv == self.width)
-            if sel:
-                c.create_rectangle(1, 1, 23, 21, outline=MC["primary"], width=2)
-            r = {3: 2, 6: 4, 12: 7}.get(wv, 3)
-            c.create_oval(12 - r, 11 - r, 12 + r, 11 + r, fill=MC["text"], outline="")
-        draw = (self.mode == "draw")
-        self.b_view.kind = "secondary" if draw else "primary"
-        self.b_draw.kind = "primary" if draw else "secondary"
-        self.b_view._draw()
-        self.b_draw._draw()
-        self.b_undo.set_enabled(bool(self.strokes))
+        edit = (self.mode == "edit")
+        for tl, c in self.tool_btns.items():
+            self._tool_icon(c, tl, edit and tl == self.tool)
+        # 선 색
+        c = self.c_color
+        c.delete("all")
+        c.create_rectangle(4, 4, 44, 22, fill=self.color, outline="#9E9E9E")
+        c.create_text(58, 13, text="▾", fill=MC["text"])
+        # 면 색
+        c = self.c_fill
+        c.delete("all")
+        en = self._fill_enabled()
+        if self.fill:
+            c.create_rectangle(4, 4, 44, 22, fill=self.fill, outline="#9E9E9E")
+        else:
+            c.create_rectangle(4, 4, 44, 22, fill="white", outline="#9E9E9E")
+            c.create_line(5, 21, 43, 5, fill="#E53935", width=2)
+        c.create_text(58, 13, text="▾", fill=MC["text"] if en else MC["disabled"])
+        if not en:        # 도형이 아닐 때는 흐리게(사용 안 함)
+            c.create_rectangle(3, 3, 45, 23, outline=MC["surface"], width=3)
+            c.create_line(4, 13, 44, 13, fill=MC["surface"], width=20, stipple="" if IS_MAC
+                          else "gray50")
+        c.configure(cursor="hand2" if en else "arrow")
+        # 굵기
+        c = self.c_width
+        c.delete("all")
+        c.create_text(4, 13, text=f"{self.width}px", anchor="w", font=self.app.f_cap,
+                      fill=MC["text"])
+        c.create_line(34, 13, 52, 13, width=min(self.width, 12), fill="#202020")
+        c.create_text(62, 13, text="▾", fill=MC["text"])
+        # 위 막대
+        for b, m in ((self.b_view, "view"), (self.b_edit, "edit"), (self.b_crop, "crop")):
+            b.kind = "primary" if self.mode == m else "secondary"
+            b._draw()
+        self.b_crop_ok.set_enabled(self.mode == "crop" and self.crop_box is not None)
+        self.b_undo.set_enabled(bool(self.actions))
         self.b_save.set_enabled(self.dirty)
-        self.cv.configure(cursor="pencil" if draw else "fleur")
+        self._apply_cursor()
+
+    def _apply_cursor(self):
+        if self._pick_cb is not None or self.mode == "crop":
+            cur = "crosshair"
+        elif self.mode == "edit":
+            cur = "none" if self.tool == "pen" else "arrow"
+        else:
+            cur = "fleur"
+        try:
+            self.cv.configure(cursor=cur)
+        except tk.TclError:
+            self.cv.configure(cursor="dotbox")
+        if not (self.mode == "edit" and self.tool == "pen" and self._pick_cb is None):
+            self.cv.delete("dot")
 
     def set_mode(self, mode):
+        if mode == "draw":            # (이전 버전 호환)
+            mode = "edit"
+        if mode != "crop":
+            self._clear_crop()
         self.mode = mode
         self._draw_tools()
         self._update_status()
 
+    def set_tool(self, tl):
+        self.tool = tl
+        self.set_mode("edit")
+
+    def _set_color(self, col):
+        if col:
+            self.color = col
+            self.set_mode("edit")
+
+    def _set_fill(self, col):
+        self.fill = col
+        self._draw_tools()
+
+    def _set_width(self, wv):
+        self.width = int(wv)
+        self.set_mode("edit")
+
+    # (이전 버전 호환)
     def set_color(self, col):
-        self.color = col
-        self.set_mode("draw")
+        self._set_color(col)
 
     def set_width(self, wv):
-        self.width = wv
-        self.set_mode("draw")
+        self._set_width(wv)
 
     def _update_status(self):
         W, H = self.img.size
         name = os.path.basename(self.path) + (" *" if self.dirty else "")
-        hint = self.t("viewer_hint_draw" if self.mode == "draw" else "viewer_hint_view")
-        self.status.configure(text=f"{name}   {W} x {H} px   ·   {hint}")
+        if self._pick_cb is not None:
+            key = "viewer_hint_dropper"
+        elif self.mode == "crop":
+            key = "viewer_hint_crop"
+        elif self.mode == "edit":
+            key = "viewer_hint_pen" if self.tool == "pen" else "viewer_hint_shape"
+        else:
+            key = "viewer_hint_view"
+        self.status.configure(text=f"{name}   {W} x {H} px   ·   {self.t(key)}")
         self.top.title(name)
+
+    def _escape(self):
+        if self._pick_cb is not None:
+            self._pick_cb = None
+            self._draw_tools()
+            self._update_status()
+        elif self.mode == "crop" and self.crop_box is not None:
+            self._clear_crop()
+            self._draw_tools()
+        elif self.mode != "view":
+            self.set_mode("view")
+        else:
+            self.close()
 
     # ---------- 확대/축소 ----------
     def _fit_scale(self):
@@ -3895,7 +4363,6 @@ class ImageViewer:
         cv = self.cv
         vw, vh = cv.winfo_width(), cv.winfo_height()
         ax, ay = anchor if anchor else (vw / 2.0, vh / 2.0)
-        # 기준점(화면 좌표) 아래의 이미지 위치를 유지
         ix = (cv.canvasx(ax)) / self.scale
         iy = (cv.canvasy(ay)) / self.scale
         self.scale = s
@@ -3904,7 +4371,8 @@ class ImageViewer:
         cv.xview_moveto(max(0.0, (ix * s - ax - x0r) / max(1.0, x1r - x0r)))
         cv.yview_moveto(max(0.0, (iy * s - ay - y0r) / max(1.0, y1r - y0r)))
         self.zoom_lbl.configure(text=f"{int(round(s * 100))}%")
-        self._redraw_strokes()
+        self._redraw_shapes()
+        self._draw_crop()
         self._schedule_render()
 
     # ---------- 보이는 부분만 그리기 ----------
@@ -3974,90 +4442,351 @@ class ImageViewer:
         self._schedule_render()
         return "break"
 
-    # ---------- 마우스: 보기=끌어서 이동, 그리기=선 ----------
+    # ---------- 마우스 ----------
     def _img_xy(self, e):
         return (self.cv.canvasx(e.x) / self.scale, self.cv.canvasy(e.y) / self.scale)
 
+    def _on_motion(self, e):
+        # 선 그리기: 포인터 대신 굵기만 한 점(선 색)을 보여 줌
+        if self.mode != "edit" or self.tool != "pen" or self._pick_cb is not None:
+            return
+        cv = self.cv
+        x, y = cv.canvasx(e.x), cv.canvasy(e.y)
+        r = max(1.5, self.width * self.scale / 2.0)
+        cv.delete("dot")
+        cv.create_oval(x - r, y - r, x + r, y + r, fill=self.color,
+                       outline="#FFFFFF" if self.color.upper() != "#FFFFFF" else "#606060",
+                       tags="dot")
+
     def _on_press(self, e):
         self.cv.focus_set()
-        if self.mode != "draw":
+        if self._pick_cb is not None:
+            self._eyedrop(e)
+            return
+        if self.mode == "view":
             self.cv.scan_mark(e.x, e.y)
             return
         x, y = self._img_xy(e)
-        self.cur = (self.color, self.width, [(x, y)])
-        self.cur_item = self._create_stroke_item(self.cur)
+        if self.mode == "crop":
+            self._crop_start = (x, y)
+            self.crop_box = None
+            self._draw_crop()
+            return
+        if self.tool == "pen":
+            self.cur = {"kind": "pen", "color": self.color, "width": self.width,
+                        "pts": [(x, y)]}
+        else:
+            self.cur = {"kind": self.tool, "color": self.color, "width": self.width,
+                        "fill": self.fill if self.tool in self.SHAPES else None,
+                        "p0": (x, y), "p1": (x, y)}
+        self.cur_items = self._items_for(self.cur)
 
     def _on_drag(self, e):
-        if self.mode != "draw":
+        if self._pick_cb is not None:
+            return
+        if self.mode == "view":
             self.cv.scan_dragto(e.x, e.y, gain=1)
             self._schedule_render()
             return
+        x, y = self._img_xy(e)
+        if self.mode == "crop":
+            if self._crop_start is None:
+                return
+            sx, sy = self._crop_start
+            self.crop_box = self._clamp_box(sx, sy, x, y)
+            self._draw_crop()
+            return
+        self._on_motion(e)
         if self.cur is None:
             return
-        pts = self.cur[2]
-        x, y = self._img_xy(e)
-        if abs(x - pts[-1][0]) + abs(y - pts[-1][1]) < 1.0 / max(self.scale, 0.01):
-            return
-        pts.append((x, y))
-        self.cv.coords(self.cur_item, *self._stroke_coords(pts))
+        if self.cur["kind"] == "pen":
+            pts = self.cur["pts"]
+            if abs(x - pts[-1][0]) + abs(y - pts[-1][1]) < 1.0 / max(self.scale, 0.01):
+                return
+            pts.append((x, y))
+        else:
+            if e.state & 0x0001:          # Shift: 정사각형·정원 / 45° 단위
+                x, y = self._constrain(self.cur["kind"], self.cur["p0"], (x, y))
+            self.cur["p1"] = (x, y)
+        for it in self.cur_items:
+            self.cv.delete(it)
+        self.cur_items = self._items_for(self.cur)
 
     def _on_release(self, _e):
-        if self.mode != "draw" or self.cur is None:
+        if self.mode == "crop":
+            self._crop_start = None
+            if self.crop_box is not None:
+                x0, y0, x1, y1 = self.crop_box
+                if x1 - x0 < 4 or y1 - y0 < 4:
+                    self._clear_crop()
+            self._draw_tools()
             return
-        self.add_stroke(self.cur, item=self.cur_item)
-        self.cur = None
-        self.cur_item = None
+        if self.mode != "edit" or self.cur is None:
+            return
+        op, items = self.cur, self.cur_items
+        self.cur, self.cur_items = None, []
+        if op["kind"] != "pen" and op["p0"] == op["p1"]:
+            for it in items:
+                self.cv.delete(it)
+            return
+        self.add_op(op, items)
 
-    def add_stroke(self, stroke, item=None):
-        """선 하나 추가(마우스 또는 자체 점검에서 호출)."""
-        if item is None:
-            item = self._create_stroke_item(stroke)
-        self.strokes.append((stroke, item))
-        self.dirty = True
+    @staticmethod
+    def _constrain(kind, p0, p1):
+        dx, dy = p1[0] - p0[0], p1[1] - p0[1]
+        if kind in ImageViewer.SHAPES:
+            m = max(abs(dx), abs(dy))
+            return (p0[0] + (m if dx >= 0 else -m), p0[1] + (m if dy >= 0 else -m))
+        ang = math.atan2(dy, dx)
+        step = math.pi / 4
+        a = round(ang / step) * step
+        ln = math.hypot(dx, dy)
+        return (p0[0] + ln * math.cos(a), p0[1] + ln * math.sin(a))
+
+    # ---------- 그린 것(op) ----------
+    def add_op(self, op, items=None):
+        if items is None:
+            items = self._items_for(op)
+        self.shapes.append((op, items))
+        self.actions.append(("shape",))
         self._draw_tools()
         self._update_status()
 
-    def _stroke_coords(self, pts):
-        s = self.scale
-        if len(pts) == 1:
-            pts = [pts[0], (pts[0][0] + 0.01, pts[0][1])]
-        out = []
-        for x, y in pts:
-            out += [x * s, y * s]
-        return out
-
-    def _create_stroke_item(self, stroke):
+    def add_stroke(self, stroke, item=None):
+        """(이전 버전 호환) (색, 굵기, 점 목록) 선 하나 추가."""
         col, wv, pts = stroke
-        return self.cv.create_line(*self._stroke_coords(pts), fill=col,
-                                   width=max(1, wv * self.scale),
-                                   capstyle="round", joinstyle="round", tags="stroke")
+        self.add_op({"kind": "pen", "color": col, "width": wv, "pts": list(pts)},
+                    [item] if item is not None else None)
 
-    def _redraw_strokes(self):
+    @staticmethod
+    def _arrow_parts(op):
+        """직선/화살표 → (선 시작, 선 끝, [머리 삼각형 점 3개, ...]) — 이미지 좌표."""
+        (x0, y0), (x1, y1) = op["p0"], op["p1"]
+        k = op["kind"]
+        dx, dy = x1 - x0, y1 - y0
+        ln = math.hypot(dx, dy) or 1.0
+        ux, uy = dx / ln, dy / ln
+        nx, ny = -uy, ux
+        w = float(op["width"])
+        L = max(10.0, w * 3.5)
+        Hh = max(5.0, w * 1.8)
+        heads_at = {"arrow_l": [0], "arrow_r": [1], "arrow_b": [0, 1]}.get(k, [])
+        if heads_at and ln < L * 1.2 * len(heads_at):
+            f = ln / (L * 1.2 * len(heads_at))
+            L, Hh = L * f, Hh * f
+        a, b = (x0, y0), (x1, y1)
+        heads = []
+        if 1 in heads_at:
+            bx, by = x1 - ux * L, y1 - uy * L
+            heads.append([(x1, y1), (bx + nx * Hh, by + ny * Hh), (bx - nx * Hh, by - ny * Hh)])
+            b = (x1 - ux * L * 0.8, y1 - uy * L * 0.8)
+        if 0 in heads_at:
+            bx, by = x0 + ux * L, y0 + uy * L
+            heads.append([(x0, y0), (bx + nx * Hh, by + ny * Hh), (bx - nx * Hh, by - ny * Hh)])
+            a = (x0 + ux * L * 0.8, y0 + uy * L * 0.8)
+        return a, b, heads
+
+    @staticmethod
+    def _tri_pts(p0, p1):
+        x0, x1 = sorted((p0[0], p1[0]))
+        y0, y1 = sorted((p0[1], p1[1]))
+        return [((x0 + x1) / 2.0, y0), (x1, y1), (x0, y1)]
+
+    def _items_for(self, op):
+        cv, s = self.cv, self.scale
+        col = op["color"]
+        wv = max(1.0, op["width"] * s)
+        k = op["kind"]
+        tags = "stroke"
+        if k == "pen":
+            pts = op["pts"]
+            if len(pts) == 1:
+                pts = [pts[0], (pts[0][0] + 0.01, pts[0][1])]
+            xy = [v * s for p in pts for v in p]
+            return [cv.create_line(*xy, fill=col, width=wv, capstyle="round",
+                                   joinstyle="round", tags=tags)]
+        if k in ("line", "arrow_l", "arrow_r", "arrow_b"):
+            a, b, heads = self._arrow_parts(op)
+            items = [cv.create_line(a[0] * s, a[1] * s, b[0] * s, b[1] * s, fill=col,
+                                    width=wv, capstyle="round" if k == "line" else "butt",
+                                    tags=tags)]
+            for hd in heads:
+                items.append(cv.create_polygon(*[v * s for p in hd for v in p], fill=col,
+                                               outline=col, tags=tags))
+            return items
+        (x0, y0), (x1, y1) = op["p0"], op["p1"]
+        fill = op.get("fill") or ""
+        if k == "rect":
+            return [cv.create_rectangle(x0 * s, y0 * s, x1 * s, y1 * s, outline=col, width=wv,
+                                        fill=fill, tags=tags)]
+        if k == "oval":
+            return [cv.create_oval(x0 * s, y0 * s, x1 * s, y1 * s, outline=col, width=wv,
+                                   fill=fill, tags=tags)]
+        if k == "tri":
+            pts = self._tri_pts(op["p0"], op["p1"])
+            return [cv.create_polygon(*[v * s for p in pts for v in p], outline=col,
+                                      width=wv, fill=fill, joinstyle="miter", tags=tags)]
+        return []
+
+    def _redraw_shapes(self):
         self.cv.delete("stroke")
-        self.strokes = [(st, self._create_stroke_item(st)) for st, _ in self.strokes]
+        self.shapes = [(op, self._items_for(op)) for op, _ in self.shapes]
 
     def undo(self):
-        if not self.strokes:
+        if not self.actions:
             return
-        _st, item = self.strokes.pop()
-        self.cv.delete(item)
-        self.dirty = bool(self.strokes)
+        a = self.actions.pop()
+        if a[0] == "shape":
+            if self.shapes:
+                _op, items = self.shapes.pop()
+                for it in items:
+                    self.cv.delete(it)
+        else:                                   # 자르기 되돌리기
+            self.cv.delete("stroke")
+            self.img = a[1]
+            self.shapes = [(op, []) for op in a[2]]
+            self._clear_crop()
+            self.fit()
+        self._draw_tools()
+        self._update_status()
+
+    # ---------- 자르기 ----------
+    def _clamp_box(self, ax, ay, bx, by):
+        W, H = self.img.size
+        x0, x1 = sorted((ax, bx))
+        y0, y1 = sorted((ay, by))
+        x0, y0 = max(0, int(round(x0))), max(0, int(round(y0)))
+        x1, y1 = min(W, int(round(x1))), min(H, int(round(y1)))
+        return (x0, y0, x1, y1)
+
+    def _clear_crop(self):
+        self.crop_box = None
+        self._crop_start = None
+        try:
+            self.cv.delete("crop")
+        except tk.TclError:
+            pass
+
+    def _draw_crop(self):
+        cv, s = self.cv, self.scale
+        cv.delete("crop")
+        if self.crop_box is None:
+            return
+        W, H = self.img.size
+        x0, y0, x1, y1 = (v * s for v in self.crop_box)
+        Ws, Hs = W * s, H * s
+        if not IS_MAC:      # 잘려 나갈 바깥을 어둡게(macOS Tk 는 점무늬 채우기 미지원)
+            for r in ((0, 0, Ws, y0), (0, y1, Ws, Hs), (0, y0, x0, y1), (x1, y0, Ws, y1)):
+                if r[2] > r[0] and r[3] > r[1]:
+                    cv.create_rectangle(*r, fill="black", outline="", stipple="gray50",
+                                        tags="crop")
+        cv.create_rectangle(x0, y0, x1, y1, outline="white", width=1, tags="crop")
+        cv.create_rectangle(x0, y0, x1, y1, outline=MC["primary"], width=2, dash=(6, 4),
+                            tags="crop")
+        cw, ch = self.crop_box[2] - self.crop_box[0], self.crop_box[3] - self.crop_box[1]
+        t_ = cv.create_text(x0 + 8, y0 + 6, text=f"{cw} x {ch}", anchor="nw", fill="white",
+                            font=self.app.f_cap, tags="crop")
+        bb = cv.bbox(t_)
+        if bb:
+            bg_ = cv.create_rectangle(bb[0] - 4, bb[1] - 2, bb[2] + 4, bb[3] + 2,
+                                      fill="#333333", outline="", tags="crop")
+            cv.tag_lower(bg_, t_)
+        cv.tag_raise("crop")
+
+    def set_crop(self, box):
+        """자를 영역 지정(이미지 좌표) — 마우스 또는 자체 점검에서 호출."""
+        self.mode = "crop"
+        self.crop_box = self._clamp_box(*box)
+        self._draw_crop()
+        self._draw_tools()
+        self._update_status()
+
+    def apply_crop(self):
+        if self.mode != "crop" or self.crop_box is None:
+            return False
+        x0, y0, x1, y1 = self.crop_box
+        if x1 - x0 < 4 or y1 - y0 < 4:
+            return False
+        prev_img = self.img
+        prev_ops = [op for op, _ in self.shapes]
+        self.img = self.rendered().crop((x0, y0, x1, y1))
+        self.cv.delete("stroke")
+        self.shapes = []
+        self.actions.append(("crop", prev_img, prev_ops))
+        self._clear_crop()
+        self.mode = "view"
+        self.fit()
+        self._draw_tools()
+        self._update_status()
+        return True
+
+    # ---------- 색상 추출 ----------
+    def start_eyedropper(self, cb):
+        self._pick_cb = cb
+        self._apply_cursor()
+        self._update_status()
+
+    def _eyedrop(self, e):
+        x, y = self._img_xy(e)
+        W, H = self.img.size
+        cb = self._pick_cb
+        self._pick_cb = None
+        if 0 <= x < W and 0 <= y < H:
+            cb(_rgb_hex(self.img.getpixel((int(x), int(y)))))
         self._draw_tools()
         self._update_status()
 
     # ---------- 저장 ----------
     def rendered(self):
-        """선을 그려 넣은 이미지(PIL)."""
+        """바탕 이미지에 그린 것을 넣은 이미지(PIL)."""
         from PIL import ImageDraw
         out = self.img.copy()
         d = ImageDraw.Draw(out)
-        for (col, wv, pts), _item in self.strokes:
-            r = wv / 2.0
-            if len(pts) > 1:
-                d.line(pts, fill=col, width=int(round(wv)), joint="curve")
-            for x, y in (pts[0], pts[-1]):          # 둥근 끝
-                d.ellipse((x - r, y - r, x + r, y + r), fill=col)
+        for op, _items in self.shapes:
+            self._draw_op(d, op)
         return out
+
+    def _draw_op(self, d, op):
+        col = op["color"]
+        w = max(1, int(round(op["width"])))
+        r = w / 2.0
+        k = op["kind"]
+
+        def cap(x, y):
+            d.ellipse((x - r, y - r, x + r, y + r), fill=col)
+        if k == "pen":
+            pts = op["pts"]
+            if len(pts) > 1:
+                d.line(pts, fill=col, width=w, joint="curve")
+            for x, y in (pts[0], pts[-1]):
+                cap(x, y)
+            return
+        if k in ("line", "arrow_l", "arrow_r", "arrow_b"):
+            a, b, heads = self._arrow_parts(op)
+            d.line([a, b], fill=col, width=w)
+            if k == "line":
+                cap(*a)
+                cap(*b)
+            for hd in heads:
+                d.polygon(hd, fill=col)
+            return
+        fill = op.get("fill")
+        (x0, y0), (x1, y1) = op["p0"], op["p1"]
+        x0, x1 = sorted((x0, x1))
+        y0, y1 = sorted((y0, y1))
+        if k == "rect":
+            if fill:
+                d.rectangle((x0, y0, x1, y1), fill=fill)
+            d.rectangle((x0 - r, y0 - r, x1 + r, y1 + r), outline=col, width=w)
+        elif k == "oval":
+            if fill:
+                d.ellipse((x0, y0, x1, y1), fill=fill)
+            d.ellipse((x0 - r, y0 - r, x1 + r, y1 + r), outline=col, width=w)
+        elif k == "tri":
+            pts = self._tri_pts((x0, y0), (x1, y1))
+            if fill:
+                d.polygon(pts, fill=fill)
+            d.line(pts + [pts[0], pts[1]], fill=col, width=w, joint="curve")
 
     def _write(self, path):
         try:
@@ -4070,8 +4799,8 @@ class ImageViewer:
         if os.path.abspath(path) == os.path.abspath(self.path):
             self.img = img
             self.cv.delete("stroke")
-            self.strokes = []
-            self.dirty = False
+            self.shapes = []
+            self.actions = []
             self._schedule_render()
         self._draw_tools()
         self._update_status()
@@ -5639,6 +6368,54 @@ def _selftest(app, out_path):
             shutil.rmtree(tmp, ignore_errors=True)
 
     check("viewer_draw_save", _viewer)
+
+    def _viewer_edit():
+        import shutil
+        import tempfile
+        tmp = tempfile.mkdtemp(prefix="sc_view2_")
+        try:
+            p = os.path.join(tmp, "e.png")
+            Image.new("RGB", (600, 2000), (255, 255, 255)).save(p)
+            v = app.open_viewer(p)
+            app.root.update()
+            v.set_tool("rect")
+            v.fill = "#FFFF00"
+            v.add_op({"kind": "rect", "color": "#FF0000", "width": 4, "fill": "#FFFF00",
+                      "p0": (100, 100), "p1": (300, 300)})
+            for k in ("tri", "oval"):
+                v.add_op({"kind": k, "color": "#0000FF", "width": 3, "fill": None,
+                          "p0": (320, 100), "p1": (500, 300)})
+            for k in ("line", "arrow_l", "arrow_r", "arrow_b"):
+                v.add_op({"kind": k, "color": "#00B050", "width": 5,
+                          "p0": (50, 500), "p1": (550, 700)})
+            app.root.update()
+            v.set_crop((50, 50, 450, 450))
+            if not v.apply_crop():
+                raise RuntimeError("crop failed")
+            v.undo()                                    # 자르기 되돌리기 → 도형 복원
+            if v.img.size != (600, 2000) or len(v.shapes) != 7:
+                raise RuntimeError(f"undo crop {v.img.size} {len(v.shapes)}")
+            v.set_crop((50, 50, 450, 450))
+            v.apply_crop()
+            v.add_op({"kind": "pen", "color": "#000000", "width": 3,
+                      "pts": [(10, 380), (390, 380)]})
+            if not v.save():
+                raise RuntimeError("save failed")
+            v.close()
+            with Image.open(p) as im:
+                im = im.convert("RGB")
+                size = im.size
+                inside = im.getpixel((150, 150))      # 노란 면(자른 뒤 좌표)
+                edge = im.getpixel((50, 100))         # 빨간 테두리
+                pen = im.getpixel((200, 380))
+            if (size != (400, 400) or inside != (255, 255, 0) or edge[0] < 200
+                    or edge[1] > 80 or pen != (0, 0, 0)):
+                raise RuntimeError(f"pixels {size} {inside} {edge} {pen}")
+            return size
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    check("viewer_shapes_crop", _viewer_edit)
     check("hotkeys", lambda: {m: v[2] for m, v in app.hotkeys.items() if v})
 
     def _panel():
