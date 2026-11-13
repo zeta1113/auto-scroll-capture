@@ -1318,6 +1318,73 @@ def _fill_right_cols(img, ncols, bg, ref=12):
     img[:, w - ncols:] = out[:, None, :]
 
 
+def _inner_scroll_box(a, b):
+    """a→b 사이에 화면 '일부 상자'(웹페이지 안의 스크롤 상자·입력칸 등)만 세로로 움직였으면
+    그 상자 (y0, y1, x0, x1), 아니면 None. 페이지 전체가 스크롤되면 내용 있는 모든 행이
+    바뀌므로, 상자 밖(위·아래 또는 좌·우)에 내용이 있는데 그대로인 부분이 있어야 한다."""
+    if a.shape != b.shape:
+        return None
+    H, W = a.shape[:2]
+    ai = a.astype(np.int16)
+    ch = np.abs(ai - b.astype(np.int16)).max(axis=2) > 30
+    rows = np.where(ch.sum(axis=1) > 2)[0]
+    cols = np.where(ch.sum(axis=0) > 2)[0]
+    if rows.size < 6 or cols.size < 6:
+        return None
+    y0, y1, x0, x1 = int(rows[0]), int(rows[-1]) + 1, int(cols[0]), int(cols[-1]) + 1
+    if y1 - y0 < 60 or (y1 - y0 > H * 0.92 and x1 - x0 > W * 0.92):
+        return None
+    ink = np.abs(np.diff(ai, axis=1)).max(axis=2) > 30          # (H, W-1) 글자·선 등
+    still = ink & ~ch[:, 1:]
+    out_v = still.copy()
+    out_v[y0:y1] = False                                         # 상자 위·아래
+    side = still[y0:y1].copy()
+    side[:, max(0, x0 - 2):x1 + 2] = False                       # 상자 좌·우
+    if out_v.sum() < W * 2 and side.sum() < (y1 - y0) * 2:
+        return None
+    d, sc_ = find_delta(a[y0:y1, x0:x1], b[y0:y1, x0:x1], max_frac=0.9)
+    if d > 2 and sc_ >= 0.6:
+        return (y0, y1, x0, x1)
+    return None
+
+
+def _point_outside(box, area, cur):
+    """상자 box(y0,y1,x0,x1) 밖, area(y0,y1,x0,x1) 안의 스크롤 지점(이미지 좌표 x, y).
+    같은 높이의 좌/우 여유를 먼저, 없으면 위/아래. 마땅한 곳이 없으면 None."""
+    by0, by1, bx0, bx1 = box
+    ay0, ay1, ax0, ax1 = area
+    cx, cy = cur
+    cand = []
+    if bx0 - ax0 >= 30:
+        cand.append((bx0 - ax0, ((ax0 + bx0) // 2, min(max(cy, ay0 + 10), ay1 - 10))))
+    if ax1 - bx1 >= 30:
+        cand.append((ax1 - bx1, ((bx1 + ax1) // 2, min(max(cy, ay0 + 10), ay1 - 10))))
+    if not cand:
+        if by0 - ay0 >= 30:
+            cand.append((by0 - ay0, (cx, (ay0 + by0) // 2)))
+        if ay1 - by1 >= 30:
+            cand.append((ay1 - by1, (cx, (by1 + ay1) // 2)))
+    if not cand:
+        return None
+    return max(cand)[1]
+
+
+def _clean_row(band, look=120):
+    """band(첫 화면의 좌측 밴드) 아래쪽 look 줄 중 가로 경계가 가장 적은 '깨끗한' 한 줄
+    (같으면 아래쪽 우선) — 사이드바 배경을 끝까지 늘려 붙일 때 사용. 글자 등이 섞여
+    깨끗한 줄이 없으면 None."""
+    H, W = band.shape[:2]
+    if H == 0 or W == 0:
+        return None
+    sub = band[max(0, H - look):].astype(np.int16)
+    edges = (np.abs(np.diff(sub, axis=1)).max(axis=2) > 30).sum(axis=1)
+    k = int(np.argmin(edges[::-1]))            # 아래쪽부터 가장 적은 줄
+    i = sub.shape[0] - 1 - k
+    if edges[i] > max(4, W // 25):
+        return None
+    return band[max(0, H - look) + i].copy()
+
+
 def _content_span(changed, win=32, frac=0.4, frames=None):
     """
     changed(불리언 배열)에서 '가장 긴 연속 고밀도 구간'(=스크롤 콘텐츠)의 (상단, 하단) 인덱스.
@@ -1731,6 +1798,27 @@ def _capture_scrolling_region(region, status_cb, opts):
                        and not os.environ.get("SC_NO_REPLAY"))
         reg = measure_fixed_regions(sct, region, hwnd, cx, cy, notches, wait,
                                     park=park, restore=not replay_mode)
+        pt_moved = False
+        if not replay_mode and reg.get("downs", 0) + reg.get("ups", 0) > 0:
+            tb, bb, lb, rb = reg["top"], reg["bot"], reg["left"], reg["right"]
+            if tb + bb > h * 0.4 and lb + rb > w * 0.3:
+                # 바뀐 곳이 화면 가운데 상자뿐 → 페이지가 아니라 그 상자(웹페이지 안의
+                # 스크롤 상자·입력칸)만 스크롤된 것. 상자 밖 지점에서 다시 측정해 보고 낫다면 사용
+                pt = _point_outside((tb, h - bb, lb, w - rb), (0, h, 0, w),
+                                    ((cx - xs) * sc, (cy - ys) * sc))
+                if pt is not None:
+                    ncx, ncy = xs + pt[0] // sc, ys + pt[1] // sc
+                    reg2 = measure_fixed_regions(sct, region, hwnd, ncx, ncy, notches, wait,
+                                                 park=park, restore=True)
+                    s1 = tb + bb + lb + rb
+                    s2 = reg2["top"] + reg2["bot"] + reg2["left"] + reg2["right"]
+                    ok2 = reg2.get("downs", 0) + reg2.get("ups", 0) > 0 and s2 < s1
+                    _dbg(f"inner box at start: point ({cx},{cy}) -> ({ncx},{ncy}) "
+                         f"bands {s1} -> {s2} {'use' if ok2 else 'keep'}")
+                    if ok2:
+                        reg = reg2
+                        cx, cy = ncx, ncy
+                        pt_moved = True
         top_band, bot_band = reg["top"], reg["bot"]
         left_band, right_band = reg["left"], reg["right"]
         _dbg(f"bands top={top_band} bot={bot_band} left={left_band} "
@@ -1755,7 +1843,10 @@ def _capture_scrolling_region(region, status_cb, opts):
             hs2 = hs - (top_band + bot_band) // sc
             h = h - top_band - bot_band
             region = (xs, y2, ws, hs2)
-            cx, cy = xs + ws // 2, y2 + hs2 // 2
+            if pt_moved:     # 안쪽 스크롤 상자를 피해 옮긴 지점은 유지(새 영역 안으로만)
+                cy = min(max(cy, y2 + 5), y2 + hs2 - 5)
+            else:
+                cx, cy = xs + ws // 2, y2 + hs2 // 2
 
         # ---------- 1-c) (옵션) sticky 등 '깊이 스크롤해야 나타나는' 고정 영역 감지 ----------
         # 실제 깊은 위치의 연속 프레임을 비교해 위/좌/우 고정 밴드를 잡아 초기 감지를 보강.
@@ -2042,6 +2133,7 @@ def _capture_scrolling_region(region, status_cb, opts):
                 sticky_seen = 0
                 last_place.update(off=None, st=0, bak=None, frame=None)
 
+        inner_moves = 0       # 안쪽 스크롤 상자를 피해 지점을 옮긴 횟수
         for _ in range(8000):
             if halted():
                 break
@@ -2050,12 +2142,32 @@ def _capture_scrolling_region(region, status_cb, opts):
             # (a) 작은 스텝으로 정확히 진행 (콘텐츠 열만으로 정렬)
             #     매 스텝 '이전/현재 프레임의 상단 동일영역'을 sticky로 감지해 제외(제안 방식).
             best = None
+            inner_retry = False
             for m in order():
                 if halted():
                     break
                 apply_scroll(hwnd, cx, cy, m, down=True, notches=notches, park=park)
                 time.sleep(wait)
                 cur = grab_settled(sct, region)
+                if inner_moves < 12 and not images_equal(C(before), C(cur)):
+                    # 페이지가 아니라 스크롤 지점 아래의 '안쪽 스크롤 상자'만 움직였으면
+                    # 같은 자리에서 되돌리고 지점을 상자 밖으로 옮겨 다시 스크롤
+                    s0 = sticky_base
+                    box = _inner_scroll_box(before[s0:h, cl:cr], cur[s0:h, cl:cr])
+                    if box is not None:
+                        box = (box[0] + s0, box[1] + s0, box[2] + cl, box[3] + cl)
+                        apply_scroll(hwnd, cx, cy, m, down=False, notches=notches, park=park)
+                        time.sleep(wait)
+                        rx, ry = region[0], region[1]
+                        pt = _point_outside(box, (s0, h, cl, cr),
+                                            ((cx - rx) * sc, (cy - ry) * sc))
+                        inner_moves += 1
+                        _dbg(f"inner box {box} at ({cx},{cy}) -> "
+                             f"{'none' if pt is None else (rx + pt[0] // sc, ry + pt[1] // sc)}")
+                        if pt is not None:
+                            cx, cy = rx + pt[0] // sc, ry + pt[1] // sc
+                            inner_retry = True
+                            break
                 # 매 스텝 '이전/현재 프레임 상단의 같은 내용' = 고정(sticky) 메뉴 → 제외
                 st = sticky_base
                 if handle_sticky or not os.environ.get("SC_NO_STICKY"):
@@ -2107,6 +2219,8 @@ def _capture_scrolling_region(region, status_cb, opts):
                     break
             if ctl is not None and ctl.stopped:
                 break
+            if inner_retry:
+                continue
             if best is not None:
                 cur, delta, st = best
                 grow_left(before, cur, st, delta)
@@ -2223,6 +2337,23 @@ def _capture_scrolling_region(region, status_cb, opts):
         tail = min(right_band, 24)
         idx = np.where(sbl[right_band - tail:])[0]
         sb_cols = int(tail - idx.min()) if idx.size else 0
+    elif right_band > 0 and right_steps[0] > 0:
+        # 스크롤바로 본 밴드도 '썸처럼 바뀐' 열부터 끝까지만 지운다. 스크롤해도 똑같아 보이는
+        # 열(표 오른쪽 테두리·단색 여백 등)은 각 화면 그대로 남김 — 통째로 지우면 표 틀이 깨짐
+        sbl = ((right_col_nm > right_col_ev * 0.3)
+               & (right_col_nm >= max(1, right_steps[0]) * 2))
+        idx = np.where(sbl)[0]
+        sb_cols = int(right_band - idx.min()) if idx.size else 0
+        if 0 < sb_cols < right_band and frame0.shape[1] == w:
+            # 썸 열 왼쪽에 붙은 트랙 열(썸이 지나가지 않아 안 바뀐 같은 색 열)도 함께 지움
+            fz = frame0[:h].astype(np.int16)
+            track = np.median(fz[:, w - sb_cols], axis=0)
+            while sb_cols < right_band:
+                c = fz[:, w - sb_cols - 1]
+                if (np.abs(np.median(c, axis=0) - track).max() > 8
+                        or float(c.std(axis=0).max()) > 6):
+                    break
+                sb_cols += 1
     if right_band > 0:
         _dbg(f"right band {right_band}: moved rows {right_stat[0]}/{right_stat[1]} "
              f"-> {'content' if right_content else 'scrollbar'}, clear {sb_cols} cols")
@@ -2235,25 +2366,29 @@ def _capture_scrolling_region(region, status_cb, opts):
             # 찍힌 목차 조각 제거)
             canvas[:f0, :left_band] = frame0[:f0, :left_band]
         if left_band > 0 and left_bg is not None:
+            # 사이드바 자리는 첫 화면 아래쪽의 '깨끗한 한 줄'을 끝까지 늘려 붙임(메뉴 배경이
+            # 끝까지 이어짐). 그런 줄이 없으면 대표 배경색
+            left_fill = _clean_row(frame0[:f0, :left_band])                 if frame0.shape[1] == canvas.shape[1] else None
             reg = canvas[f0:, :left_band]
-            reg[~left_mask[f0:]] = left_bg
+            reg[~left_mask[f0:]] = left_fill if left_fill is not None else left_bg
         # 지울 열의 첫 화면 범위는 첫 화면 그대로(place 가 나중 프레임의 썸으로 덮었을 수 있음)
         if sb_cols > 0 and frame0.shape[1] == canvas.shape[1]:
             canvas[:f0, w - sb_cols:] = frame0[:f0, w - sb_cols:]
         if right_content and sb_cols > 0:
             _fill_right_cols(canvas[f0:], sb_cols, content_bg)
-        if right_band > 0 and not right_content:
-            _fill_right_cols(canvas[f0:], right_band, content_bg)
+        if right_band > 0 and not right_content and sb_cols > 0:
+            _fill_right_cols(canvas[f0:], sb_cols, content_bg)
             if first_right is not None:
-                cs = prev[:h, w - right_band:]
-                d = np.mean(np.abs(cs.astype(np.int16) - first_right.astype(np.int16)),
+                cs = prev[:h, w - sb_cols:]
+                d = np.mean(np.abs(cs.astype(np.int16)
+                                   - first_right[:, right_band - sb_cols:].astype(np.int16)),
                             axis=(1, 2))
                 r = h - 1
                 while r >= 0 and d[r] > 8:
                     r -= 1
                 if r + 1 < h:
                     idx = np.arange(r + 1, h)
-                    canvas[offset + idx, w - right_band:] = cs[idx]
+                    canvas[offset + idx, w - sb_cols:] = cs[idx]
 
     # 고정 상단(헤더)은 맨 위, 고정 하단(트레이바 등)은 맨 아래에 1회 덮어 붙임
     if header_img is not None and header_img.shape[1] == canvas.shape[1]:
@@ -2264,7 +2399,9 @@ def _capture_scrolling_region(region, status_cb, opts):
             rows = (footer_rows if footer_rows is not None
                     else np.ones(footer_img.shape[0], bool))
             if left_band > 0 and left_bg is not None:
-                footer_img[rows, :left_band] = left_bg
+                lf = (_clean_row(frame0[:max(1, h - 16 * sc), :left_band])
+                      if frame0.shape[1] == footer_img.shape[1] else None)
+                footer_img[rows, :left_band] = lf if lf is not None else left_bg
             if sb_cols > 0 and rows.any():
                 live_rows = footer_img[rows]
                 _fill_right_cols(live_rows, sb_cols, content_bg)
