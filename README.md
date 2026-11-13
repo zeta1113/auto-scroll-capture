@@ -72,11 +72,12 @@ auto-capture/
 ## 릴리즈 정보
 
 - 최신 빌드 및 전체 이력은 [`release/RELEASES.md`](release/RELEASES.md) 참고.
-- 📥 **다운로드**: [최신 릴리스(v1.5.15)](https://github.com/zeta1113/auto-scroll-capture/releases/latest)
-  - Windows: `ScrollCapture_Setup_v1.5.15.exe`
-  - macOS: `ScrollCapture_mac_arm64_v1.5.15.dmg`(Apple Silicon) / `ScrollCapture_mac_x86_64_v1.5.15.dmg`(Intel)
+- 📥 **다운로드**: [최신 릴리스(v1.5.16)](https://github.com/zeta1113/auto-scroll-capture/releases/latest)
+  - Windows: `ScrollCapture_Setup_v1.5.16.exe`
+  - macOS: `ScrollCapture_mac_arm64_v1.5.16.dmg`(Apple Silicon) / `ScrollCapture_mac_x86_64_v1.5.16.dmg`(Intel)
 - 🔔 자동 업데이트: `GITHUB_REPO = "zeta1113/auto-scroll-capture"` 설정됨 — 새 릴리스가 올라오면 앱이 자동 감지해 알림
-- 현재 최신: **v1.5.15** — Windows `ScrollCapture_Setup_v1.5.15.exe` + macOS DMG(arm64/x86_64)
+- 현재 최신: **v1.5.16** — Windows `ScrollCapture_Setup_v1.5.16.exe` + macOS DMG(arm64/x86_64)
+  - v1.5.16: **뷰어 편집** — 툴박스(선 그리기·직선·화살표·사각형·삼각형·원)·면 색·Windows 기본 색 팔레트·선 두께 1~15px·자르기 · 웹페이지 안쪽 스크롤 상자를 피해 스크롤 · 표 오른쪽 틀 유지 · 왼쪽 메뉴 배경 끝까지
   - v1.5.15: 메신저 대화창 스크롤 캡처 — 영역 맨 위 얇은 구분선이 이음매마다 찍히던 가로 줄무늬, 맨 아래 입력창 위에 다른 위치 내용 조각, 오른쪽 아래 색 블록, 맨 끝에서 시작 시 화면이 움직이고 대화가 선택되던 문제 수정
   - v1.5.14: **파일 뷰어** — 목록 항목 클릭으로 열기, 확대/축소·이동, 편집 모드(선 그리기·되돌리기)·저장/다른 이름으로 저장 · 영역 오른쪽 끝까지 닿는 내용(카카오톡 말풍선 등)이 스크롤바로 오인돼 잘리던 문제 수정
   - v1.5.13: **파일 목록 수정** — 폴더 이미지가 60개를 넘으면 새 캡처가 목록에 바로 안 뜨고 새로고침해야 보이던 문제, 연속 캡처 시 새 파일 순서 수정
