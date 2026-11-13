@@ -1,0 +1,3 @@
+target region: (124, 172, 552, 452)
+cancelled (nothing saved)
+PASS

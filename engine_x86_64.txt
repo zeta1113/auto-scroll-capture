@@ -1,0 +1,7 @@
+target region: (124, 172, 552, 452)
+pointer: moved max 537px during capture (2673 samples)
+result: 552x5535  scale=1.00  height ratio=12.2  time=58s  methods={'send': 43}  -> engine_test_x86_64.png
+log: bands top=0 bot=0 left=56 right=24 downs=3 ups=0 replay=True
+log: right band 24: moved rows 5112/14021 -> content, clear 0 cols
+lines: 240 found ([1]..[240]), sticky bar rows in result=0
+PASS

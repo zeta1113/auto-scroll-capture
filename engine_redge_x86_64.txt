@@ -1,0 +1,10 @@
+target region: (124, 168, 552, 456)
+pointer: moved max 539px during capture (2430 samples)
+result: 552x5541  scale=1.00  height ratio=12.2  time=58s  methods={'send': 43}  -> engine_redge_x86_64.png
+log: bands top=2 bot=0 left=56 right=11 downs=3 ups=0 replay=True
+log: right band 11: moved rows 0/14103 -> scrollbar, clear 10 cols
+right edge blue rows: 0.250 (first screen 0.239, scrollbar 11px)
+top line rows: 1
+scrollbar thumb rows below first screen: 37
+lines: 240 found ([1]..[240]), sticky bar rows in result=0
+PASS
