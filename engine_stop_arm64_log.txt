@@ -1,0 +1,12 @@
+1794537136.38 version=1.5.16 sticky=False speed=1.0 auto_top=True
+1794537136.87 start region=(124, 172, 552, 452) img=552x452 sc=1 hwnd=None methods=['send', 'key', 'hid', 'wheel'] notches=2 wait=0.35
+1794537138.46 probe -> send moved=240 methods=['send', 'key']
+1794537138.46 adapt per_notch=120px -> notches=1 top=2
+1794537144.23 bands top=0 bot=0 left=56 right=24 downs=3 ups=0 replay=True
+1794537145.21 a m=send st=0 delta=120 score=1.000 off=360
+1794537146.07 a m=send st=0 delta=120 score=1.000 off=480
+1794537146.89 a m=send st=0 delta=120 score=1.000 off=600
+1794537147.66 a m=send st=0 delta=120 score=1.000 off=720
+1794537148.46 a m=send st=0 delta=120 score=1.000 off=840
+1794537148.46 right band 24: moved rows 852/2324 -> content, clear 0 cols
+1794537148.46 done 552x1412

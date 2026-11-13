@@ -1,0 +1,61 @@
+1794537233.04 version=1.5.16 sticky=False speed=1.0 auto_top=True
+1794537233.62 start region=(88, 155, 860, 531) img=860x531 sc=1 hwnd=WinRef(pid=3752, wid=37, rect=(80, 25, 900, 681)) methods=['send', 'key', 'hid', 'wheel'] notches=2 wait=0.35
+1794537236.81 probe -> key moved=160 methods=['key', 'send']
+1794537236.81 adapt per_notch=80px -> notches=2 top=4
+1794537243.48 bands top=0 bot=0 left=0 right=24 downs=3 ups=0 replay=True
+1794537244.58 a m=key st=0 delta=160 score=1.000 off=480
+1794537245.60 a m=key st=0 delta=160 score=1.000 off=640
+1794537246.69 a m=key st=0 delta=160 score=1.000 off=800
+1794537247.67 a m=key st=0 delta=160 score=1.000 off=960
+1794537249.41 inner box (0, 531, 72, 711) at (518,420) -> (861, 420)
+1794537251.18 inner box (0, 531, 72, 711) at (861,420) -> (861, 420)
+1794537252.90 inner box (0, 531, 72, 711) at (861,420) -> (861, 420)
+1794537254.63 inner box (0, 531, 72, 711) at (861,420) -> (861, 420)
+1794537256.31 inner box (0, 531, 72, 711) at (861,420) -> (861, 420)
+1794537258.14 inner box (0, 531, 72, 711) at (861,420) -> (861, 420)
+1794537259.83 inner box (0, 531, 72, 711) at (861,420) -> (861, 420)
+1794537261.66 inner box (0, 531, 72, 711) at (861,420) -> (861, 420)
+1794537263.63 inner box (0, 531, 72, 711) at (861,420) -> (861, 420)
+1794537265.47 inner box (0, 531, 72, 711) at (861,420) -> (861, 420)
+1794537267.14 inner box (0, 531, 72, 711) at (861,420) -> (861, 420)
+1794537268.94 inner box (0, 531, 72, 711) at (861,420) -> (861, 420)
+1794537270.05 a m=key st=0 delta=120 score=1.000 off=1120
+1794537271.02 a m=key st=0 delta=160 score=1.000 off=1240
+1794537271.94 a m=key st=0 delta=160 score=1.000 off=1400
+1794537273.04 a m=key st=0 delta=160 score=1.000 off=1560
+1794537274.12 a m=key st=0 delta=160 score=1.000 off=1720
+1794537275.05 a m=key st=0 delta=160 score=1.000 off=1880
+1794537276.08 a m=key st=0 delta=160 score=1.000 off=2040
+1794537277.02 a m=key st=0 delta=160 score=1.000 off=2200
+1794537278.06 a m=key st=0 delta=160 score=1.000 off=2360
+1794537279.32 a m=key st=0 delta=160 score=1.000 off=2520
+1794537280.30 a m=key st=0 delta=160 score=1.000 off=2680
+1794537281.25 a m=key st=0 delta=160 score=1.000 off=2840
+1794537282.23 a m=key st=0 delta=160 score=1.000 off=3000
+1794537283.25 a m=key st=0 delta=160 score=1.000 off=3160
+1794537284.11 a m=key st=0 delta=160 score=1.000 off=3320
+1794537285.00 a m=key st=0 delta=160 score=1.000 off=3480
+1794537285.92 a m=key st=0 delta=160 score=1.000 off=3640
+1794537286.89 a m=key st=0 delta=160 score=1.000 off=3800
+1794537287.81 a m=key st=0 delta=160 score=1.000 off=3960
+1794537288.76 a m=key st=0 delta=160 score=1.000 off=4120
+1794537289.69 a m=key st=0 delta=160 score=1.000 off=4280
+1794537290.66 a m=key st=0 delta=160 score=1.000 off=4440
+1794537291.62 a m=key st=0 delta=160 score=1.000 off=4600
+1794537292.67 a m=key st=0 delta=120 score=1.000 off=4760
+1794537293.69 a m=key st=0 delta=160 score=1.000 off=4880
+1794537294.72 a m=key st=0 delta=160 score=1.000 off=5040
+1794537295.65 a m=key st=0 delta=160 score=1.000 off=5200
+1794537296.56 a m=key st=0 delta=160 score=1.000 off=5360
+1794537297.61 a m=key st=0 delta=160 score=1.000 off=5520
+1794537298.58 a m=key st=0 delta=160 score=1.000 off=5680
+1794537299.61 a m=key st=0 delta=160 score=1.000 off=5840
+1794537300.58 a m=key st=0 delta=160 score=1.000 off=6000
+1794537301.59 a m=key st=0 delta=160 score=1.000 off=6160
+1794537302.50 a m=key st=0 delta=42 score=1.000 off=6320
+1794537302.50 adapt notches 2 -> 6 (delta=42)
+1794537304.16 a m=key st=0 delta=0 score=1.000 off=6362
+1794537304.95 a m=send st=0 delta=0 score=1.000 off=6362
+1794537308.79 c end (no crossing) off=6362
+1794537308.79 right band 24: moved rows 0/15038 -> scrollbar, clear 0 cols
+1794537308.79 done 860x6893

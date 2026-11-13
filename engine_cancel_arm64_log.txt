@@ -1,0 +1,4 @@
+1794537152.00 version=1.5.16 sticky=False speed=1.0 auto_top=True
+1794537152.46 start region=(124, 172, 552, 452) img=552x452 sc=1 hwnd=None methods=['send', 'key', 'hid', 'wheel'] notches=2 wait=0.35
+1794537154.06 probe -> send moved=240 methods=['send', 'key']
+1794537154.06 adapt per_notch=120px -> notches=1 top=2
